@@ -37,3 +37,17 @@ mox run deploy     # deploy with a mock $2000 oracle on pyevm
 
 The deploy script uses `tests/mocks/mock_aggregator.vy`. For a live network,
 deploy `ministable` with the real Chainlink ETH/USD feed address instead.
+
+## Tests
+
+| Directory | Contents |
+| --- | --- |
+| `tests/unitary/ministable/` | One file per behavior: deposit, mint, burn, withdraw, liquidate, oracle, collateral ratio, ERC-20, permit |
+| `tests/integration/` | Multi-step position lifecycles (open/close, rescue, liquidation with bought mUSD) |
+| `tests/fuzz/` | Hypothesis: exact mint/withdraw bounds, and a stateful model checking solvency invariants |
+| `tests/mocks/` | Mock Chainlink feed and a contract position holder (ETH rejection, reentrancy) |
+
+```bash
+mox test tests/unitary   # fast unit tests only
+mox test tests/fuzz      # property + stateful fuzzing (~45s)
+```

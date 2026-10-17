@@ -6,3 +6,9 @@ readme = "README.md"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
 dependencies = []
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    # py-evm's `cached_property` dependency on Python 3.14; not our code.
+    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning:cached_property",
+]
