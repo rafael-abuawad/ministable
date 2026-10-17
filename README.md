@@ -1,4 +1,4 @@
-# Moccasin Project
+# ministable
 
 🐍 Welcome to your Moccasin project!
 

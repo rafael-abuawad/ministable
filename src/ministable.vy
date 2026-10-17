@@ -50,21 +50,21 @@ exports: erc20.__interface__
 @payable
 def __init__():
     ow.__init__()
-    erc20.__init__("simple-usd", "1")
+    erc20.__init__("ministable", "1")
 
 
 # @dev Returns the name of the token.
 @view
 @external
 def name() -> String[10]:
-    return "Simple USD"
+    return "ministable"
 
 
 # @dev Returns the symbol of the token.
 @view
 @external
 def symbol() -> String[4]:
-    return "SUSD"
+    return "mUSD"
 
 
 # @dev Returns the decimal places of the token.
