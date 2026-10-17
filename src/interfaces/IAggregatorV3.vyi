@@ -1,0 +1,33 @@
+# pragma version ~=0.4.3
+"""
+@title Chainlink AggregatorV3 Interface Definition
+@custom:contract-name IAggregatorV3
+@license GNU Affero General Public License v3.0 only
+@author rafael-abuawad
+@notice Minimal subset of Chainlink's `AggregatorV3Interface`
+        used by ministable to read the ETH/USD price.
+"""
+
+
+@external
+@view
+def decimals() -> uint8:
+    """
+    @dev Returns the number of decimals of the answer.
+    @return uint8 The number of decimals (8 for USD feeds).
+    """
+    ...
+
+
+@external
+@view
+def latestRoundData() -> (uint80, int256, uint256, uint256, uint80):
+    """
+    @dev Returns the data of the latest round.
+    @return uint80 The round ID.
+    @return int256 The price answer.
+    @return uint256 The timestamp the round started.
+    @return uint256 The timestamp the round was last updated.
+    @return uint80 The round ID in which the answer was computed.
+    """
+    ...
