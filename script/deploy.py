@@ -9,9 +9,11 @@ Live networks must pin its address there; only local networks deploy a mock.
 """
 
 from pathlib import Path
+from unittest.mock import patch
 
 import boa
 from boa.contracts.abi.abi_contract import ABIContract
+from boa.explorer import SESSION, Etherscan
 from moccasin.boa_tools import VyperContract
 from moccasin.config import Network, get_active_network
 
@@ -104,6 +106,23 @@ def _check_deployment(stable: VyperContract, feed: ABIContract | VyperContract):
     )
 
 
+class _Etherscan(Etherscan):
+    # titanoboa 0.2.8 sends `chainid` only in the verification POST body, but
+    # Etherscan's v2 API reads it from the query string ("Missing or unsupported
+    # chainid parameter"). Fixed on titanoboa master; until that ships, add the
+    # query param whenever boa hasn't.
+    def verify(self, *args, **kwargs):
+        post = SESSION.post
+
+        def post_with_chainid(url, **post_kwargs):
+            if "chainid=" not in url:
+                post_kwargs.setdefault("params", {"chainid": self.chain_id})
+            return post(url, **post_kwargs)
+
+        with patch.object(SESSION, "post", post_with_chainid):
+            return super().verify(*args, **kwargs)
+
+
 def _verify(network: Network, stable: VyperContract):
     if _is_dev_network(network) or not network.has_explorer():
         return
@@ -115,7 +134,10 @@ def _verify(network: Network, stable: VyperContract):
         print("Skipping verification: no Etherscan API key configured.")
         return
 
-    verifier = network.get_verifier_class()(network.explorer_uri, api_key)
+    verifier_class = network.get_verifier_class()
+    if verifier_class is Etherscan:
+        verifier_class = _Etherscan
+    verifier = verifier_class(network.explorer_uri, api_key)
     # `Network.moccasin_verify` leaves Etherscan's v2 API on chain 1.
     if hasattr(verifier, "set_chain_id"):
         verifier.set_chain_id(network.chain_id)
