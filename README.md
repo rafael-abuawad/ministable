@@ -35,8 +35,19 @@ mox test           # run the test suite
 mox run deploy     # deploy with a mock $2000 oracle on pyevm
 ```
 
-The deploy script uses `tests/mocks/mock_aggregator.vy`. For a live network,
-deploy `ministable` with the real Chainlink ETH/USD feed address instead.
+The ETH/USD feed is the `eth_usd_price_feed` named contract in `moccasin.toml`.
+Local networks (pyevm, anvil) deploy `tests/mocks/mock_aggregator.vy`; live
+networks use the Chainlink feed address pinned there and refuse to deploy a mock.
+
+```bash
+mox run deploy --network sepolia --fork             # dry run against a Sepolia fork
+mox run deploy --network sepolia --account <name>   # live deploy + Etherscan verification
+```
+
+Before deploying, the script checks that the feed is a contract, reports 8 decimals
+and has a fresh, positive answer. After deploying, it reads the contract back to
+confirm its parameters. Verification needs `ETHERSCAN_API_KEY` in `.env`, and
+mainnet also needs `MAINNET_RPC_URL`.
 
 ## Tests
 
