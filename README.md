@@ -11,8 +11,14 @@ contract holds the ETH, tracks positions and mints/burns mUSD.
   directly to the contract — both route through the internal `_deposit`.
 - **Minimum collateral ratio:** 150%. Minting and withdrawing must leave the
   position at or above it.
-- **Price:** Chainlink AggregatorV3 ETH/USD feed (8 decimals). Non-positive or
-  stale (older than 1 hour) answers revert.
+- **Price:** Chainlink AggregatorV3 ETH/USD feed (any decimals up to 18).
+  Non-positive or stale answers revert. The staleness limit, `ORACLE_TIMEOUT`,
+  is set per network at deployment (the feed's heartbeat plus a buffer) and is
+  immutable afterwards.
+- **L2 sequencer:** on L2s, the contract reads Chainlink's sequencer uptime
+  feed and refuses to price positions while the sequencer is down and for an
+  hour after it returns. `deposit`, `burn` and debt-free `withdraw` never read
+  the price, so users can always repay and exit.
 - **Liquidation:** any position below 150% can be fully liquidated. The
   liquidator burns the position's entire mUSD debt and receives all of its ETH.
 - **Token:** ERC-20 + EIP-2612 permit, 18 decimals.
@@ -44,8 +50,19 @@ mox run deploy --network sepolia --fork             # dry run against a Sepolia 
 mox run deploy --network sepolia --account <name>   # live deploy + Etherscan verification
 ```
 
-Before deploying, the script checks that the feed is a contract, reports 8 decimals
-and has a fresh, positive answer. After deploying, it reads the contract back to
+Each live network sets `oracle_timeout` under `[networks.<name>.extra_data]`,
+and L2s pin a `sequencer_uptime_feed` contract (the script refuses to deploy to
+Arbitrum without one).
+
+| Network | Feed heartbeat | `oracle_timeout` | Sequencer feed |
+| --- | --- | --- | --- |
+| Ethereum mainnet | 3600s | 4500s | — |
+| Sepolia | 3600s | 4500s | — |
+| Arbitrum One | 1755s | 2400s | `0xFdB631F5EE196F0ed6FAa767959853A9F217697D` |
+
+Before deploying, the script checks that the feed is a contract, reports at most
+18 decimals and has a fresh, positive answer, and that the sequencer (if any) is
+up and past its grace period. After deploying, it reads the contract back to
 confirm its parameters. Verification needs `ETHERSCAN_API_KEY` in `.env`, and
 mainnet also needs `MAINNET_RPC_URL`.
 

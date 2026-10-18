@@ -61,8 +61,9 @@ exports: erc20.__interface__
 MIN_COLLAT_RATIO: public(constant(uint256)) = 15 * 10**17
 
 
-# @dev Maximum age of an oracle answer, in seconds.
-ORACLE_TIMEOUT: public(constant(uint256)) = 3600
+# @dev Time the L2 sequencer must have been back up
+# before prices are trusted again, in seconds.
+SEQUENCER_GRACE_PERIOD: public(constant(uint256)) = 3600
 
 
 # @dev Constant to calculate the precision.
@@ -71,6 +72,21 @@ PRECISION: constant(uint256) = 10**18
 
 # @dev The ETH/USD price feed.
 ORACLE: public(immutable(IAggregatorV3))
+
+
+# @dev Maximum age of an oracle answer, in seconds.
+# Set per network at deployment: the feed's heartbeat
+# plus a buffer.
+ORACLE_TIMEOUT: public(immutable(uint256))
+
+
+# @dev Scales an oracle answer to 18 decimals.
+PRICE_SCALE: immutable(uint256)
+
+
+# @dev The Chainlink L2 sequencer uptime feed, or
+# `empty(address)` on networks without a sequencer.
+SEQUENCER_UPTIME_FEED: public(immutable(IAggregatorV3))
 
 
 # @dev Returns the ETH (in wei) locked by an `address`.
@@ -129,10 +145,18 @@ def __init__(
     name_eip712_: String[50],
     version_eip712_: String[20],
     oracle: IAggregatorV3,
+    oracle_timeout_: uint256,
+    sequencer_uptime_feed_: IAggregatorV3,
 ):
     ow.__init__()
     erc20.__init__(name_, symbol_, decimals_, name_eip712_, version_eip712_)
+    assert oracle_timeout_ > 0 # dev: [ministable] zero oracle timeout
+    oracle_decimals: uint8 = staticcall oracle.decimals()
+    assert oracle_decimals <= 18 # dev: [ministable] unsupported oracle decimals
     ORACLE = oracle
+    ORACLE_TIMEOUT = oracle_timeout_
+    PRICE_SCALE = 10 ** (18 - convert(oracle_decimals, uint256))
+    SEQUENCER_UPTIME_FEED = sequencer_uptime_feed_
 
 
 # @dev Plain ETH transfers are treated as deposits.
@@ -206,6 +230,8 @@ def _deposit(user: address, amount: uint256):
 @view
 @internal
 def _price() -> uint256:
+    if SEQUENCER_UPTIME_FEED.address != empty(address):
+        self._check_sequencer()
     round_id: uint80 = 0
     answer: int256 = 0
     started_at: uint256 = 0
@@ -214,8 +240,27 @@ def _price() -> uint256:
     round_id, answer, started_at, updated_at, answered_in_round = staticcall ORACLE.latestRoundData()
     assert answer > 0 # dev: [ministable] invalid price
     assert block.timestamp - updated_at <= ORACLE_TIMEOUT # dev: [ministable] stale price
-    # @dev 8-decimal feed scaled to 18 decimals.
-    return convert(answer, uint256) * 10**10
+    return convert(answer, uint256) * PRICE_SCALE
+
+
+# @dev Reverts while the L2 sequencer is down, and for
+# `SEQUENCER_GRACE_PERIOD` seconds after it comes back,
+# so positions aren't liquidated on prices users could
+# not react to.
+@view
+@internal
+def _check_sequencer():
+    round_id: uint80 = 0
+    answer: int256 = 0
+    started_at: uint256 = 0
+    updated_at: uint256 = 0
+    answered_in_round: uint80 = 0
+    round_id, answer, started_at, updated_at, answered_in_round = staticcall SEQUENCER_UPTIME_FEED.latestRoundData()
+    # @dev 0 means up, 1 means down.
+    assert answer == 0 # dev: [ministable] sequencer down
+    # @dev Arbitrum reports 0 before the feed is initialised.
+    assert started_at > 0 # dev: [ministable] sequencer down
+    assert block.timestamp - started_at > SEQUENCER_GRACE_PERIOD # dev: [ministable] sequencer grace period
 
 
 @view

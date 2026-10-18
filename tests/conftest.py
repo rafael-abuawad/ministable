@@ -1,9 +1,15 @@
 import boa
 import pytest
 
-from src import ministable
 from tests.mocks.deployers import MOCK_AGGREGATOR, MOCK_RECEIVER
-from tests.utils.constants import ETH, ETH_USD_PRICE, POSITION_COLLATERAL, POSITION_DEBT
+from tests.utils.constants import (
+    ETH,
+    ETH_USD_PRICE,
+    ORACLE_DECIMALS,
+    POSITION_COLLATERAL,
+    POSITION_DEBT,
+)
+from tests.utils.helpers import deploy_stable
 
 boa.env.enable_fast_mode()
 
@@ -44,15 +50,13 @@ def recipient():
 
 @pytest.fixture(scope="module")
 def oracle():
-    return MOCK_AGGREGATOR.deploy(ETH_USD_PRICE)
+    return MOCK_AGGREGATOR.deploy(ETH_USD_PRICE, ORACLE_DECIMALS)
 
 
 @pytest.fixture(scope="module")
 def stable(oracle, admin):
     with boa.env.prank(admin):
-        return ministable.deploy(
-            "ministable", "mUSD", 18, "ministable", "1", oracle.address
-        )
+        return deploy_stable(oracle.address)
 
 
 @pytest.fixture(scope="module")

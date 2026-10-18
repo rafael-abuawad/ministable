@@ -12,10 +12,15 @@ from hypothesis.stateful import (
     rule,
 )
 
-from src import ministable
 from tests.mocks.deployers import MOCK_AGGREGATOR
-from tests.utils.constants import ETH, ETH_USD_PRICE, MIN_COLLAT_RATIO, PRECISION
-from tests.utils.helpers import max_mintable
+from tests.utils.constants import (
+    ETH,
+    ETH_USD_PRICE,
+    MIN_COLLAT_RATIO,
+    ORACLE_DECIMALS,
+    PRECISION,
+)
+from tests.utils.helpers import deploy_stable, max_mintable
 
 N_ACTORS = 4
 STARTING_ETH = 1_000 * ETH
@@ -34,10 +39,8 @@ feed_price_st = st.integers(min_value=100 * 10**8, max_value=10_000 * 10**8)
 class SolvencyMachine(RuleBasedStateMachine):
     @initialize()
     def setup(self):
-        self.oracle = MOCK_AGGREGATOR.deploy(ETH_USD_PRICE)
-        self.stable = ministable.deploy(
-            "ministable", "mUSD", 18, "ministable", "1", self.oracle.address
-        )
+        self.oracle = MOCK_AGGREGATOR.deploy(ETH_USD_PRICE, ORACLE_DECIMALS)
+        self.stable = deploy_stable(self.oracle.address)
         self.feed_price = ETH_USD_PRICE
         self.actors = [boa.env.generate_address(f"actor{i}") for i in range(N_ACTORS)]
         for actor in self.actors:

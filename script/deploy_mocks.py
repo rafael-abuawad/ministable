@@ -2,7 +2,7 @@ from moccasin.boa_tools import VyperContract
 from moccasin.config import get_active_network
 
 from tests.mocks import mock_aggregator
-from tests.utils.constants import ETH_USD_PRICE
+from tests.utils.constants import ETH_USD_PRICE, ORACLE_DECIMALS
 
 ANVIL_CHAIN_ID = 31337
 
@@ -15,7 +15,7 @@ def deploy_price_feed() -> VyperContract:
         raise RuntimeError(
             f"Refusing to deploy a mock price feed on live network '{network.name}'."
         )
-    feed: VyperContract = mock_aggregator.deploy(ETH_USD_PRICE)
+    feed: VyperContract = mock_aggregator.deploy(ETH_USD_PRICE, ORACLE_DECIMALS)
     print(f"Mock ETH/USD price feed deployed at {feed.address}")
     return feed
 

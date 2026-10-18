@@ -1,14 +1,28 @@
-from tests.utils.constants import MIN_COLLAT_RATIO, PRECISION
+from src import ministable
+from tests.utils.constants import (
+    MIN_COLLAT_RATIO,
+    ORACLE_DECIMALS,
+    ORACLE_TIMEOUT,
+    PRECISION,
+    ZERO_ADDRESS,
+)
 
 
-def to_feed_price(usd: int) -> int:
-    """Whole-dollar ETH/USD price in Chainlink's 8-decimal format."""
-    return usd * 10**8
+def deploy_stable(oracle, timeout=ORACLE_TIMEOUT, sequencer=ZERO_ADDRESS):
+    """ministable with the test suite's token metadata."""
+    return ministable.deploy(
+        "ministable", "mUSD", 18, "ministable", "1", oracle, timeout, sequencer
+    )
 
 
-def max_mintable(collateral: int, feed_price: int) -> int:
+def to_feed_price(usd: int, decimals: int = ORACLE_DECIMALS) -> int:
+    """Whole-dollar ETH/USD price in a Chainlink feed's format."""
+    return usd * 10**decimals
+
+
+def max_mintable(collateral: int, feed_price: int, decimals: int = ORACLE_DECIMALS) -> int:
     """Largest debt `collateral` wei can back at `feed_price` (mirrors `_collat_ratio`)."""
-    value = collateral * feed_price * 10**10 // PRECISION
+    value = collateral * feed_price * 10 ** (18 - decimals) // PRECISION
     return value * PRECISION // MIN_COLLAT_RATIO
 
 
