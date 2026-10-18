@@ -2,9 +2,11 @@
 
     mox run deploy                                      # pyevm, mock price feed
     mox run deploy --network anvil                      # anvil, mock price feed
-    mox run deploy --network sepolia --account <name>   # Chainlink ETH/USD feed
+    mox run deploy --network sepolia --account <name>   # Chainlink price feed
 
-The ETH/USD feed is the `eth_usd_price_feed` named contract in moccasin.toml.
+Collateral is the chain's native coin (ETH, MON on Monad, S on Sonic), priced
+by the `native_usd_price_feed` named contract in moccasin.toml, which must
+quote that coin in USD.
 Live networks must pin its address there; only local networks deploy a mock.
 Live networks also set `oracle_timeout` (the feed's heartbeat plus a buffer)
 under `extra_data`, and L2s pin a `sequencer_uptime_feed`.
@@ -31,7 +33,7 @@ DECIMALS = 18
 EIP712_NAME = "ministable"
 EIP712_VERSION = "1"
 
-PRICE_FEED = "eth_usd_price_feed"
+PRICE_FEED = "native_usd_price_feed"
 SEQUENCER_FEED = "sequencer_uptime_feed"
 # ministable scales answers up to 18 decimals, so feeds can't report more.
 MAX_PRICE_FEED_DECIMALS = 18

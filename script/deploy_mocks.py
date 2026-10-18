@@ -16,7 +16,7 @@ def deploy_price_feed() -> VyperContract:
             f"Refusing to deploy a mock price feed on live network '{network.name}'."
         )
     feed: VyperContract = mock_aggregator.deploy(ETH_USD_PRICE, ORACLE_DECIMALS)
-    print(f"Mock ETH/USD price feed deployed at {feed.address}")
+    print(f"Mock native coin / USD price feed deployed at {feed.address}")
     return feed
 
 

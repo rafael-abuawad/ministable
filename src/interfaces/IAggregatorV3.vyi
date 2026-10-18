@@ -5,7 +5,8 @@
 @license GNU Affero General Public License v3.0 only
 @author rafael-abuawad
 @notice Minimal subset of Chainlink's `AggregatorV3Interface`
-        used by ministable to read the ETH/USD price.
+        used by ministable to read the native coin's
+        USD price.
 """
 
 

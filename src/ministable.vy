@@ -1,18 +1,20 @@
 # pragma version ~=0.4.3
 # pragma nonreentrancy on
 """
-@title ministable: ETH-backed stablecoin (mUSD)
+@title ministable: stablecoin (mUSD) backed by the native coin
 @custom:contract-name ministable
 @notice The CDP engine lives in the token itself. Users lock
-        ETH (via `deposit` or a plain ETH transfer) and mint
+        the chain's native coin (ETH on Ethereum and Arbitrum,
+        MON on Monad, S on Sonic) via `deposit` or a plain
+        transfer, and mint
         mUSD against it at a minimum 150% collateral ratio.
         Debt accrues a fixed stability fee, minted to the
         protocol's surplus. Positions below 150% can be
         liquidated back to 150%: the liquidator repays debt
-        and receives 110% of it in ETH. Debt that a
-        position's ETH cannot cover becomes bad debt, which
+        and receives 110% of it in collateral. Debt that a
+        position's collateral cannot cover becomes bad debt, which
         the surplus and reserve absorb. Anyone can redeem
-        mUSD for $1 of ETH from a healthy position.
+        mUSD for $1 of collateral from a healthy position.
 @license GNU Affero General Public License v3.0 only
 @author rafael-abuawad
 """
@@ -42,7 +44,7 @@ implements: IERC5267
 
 
 # @dev We import the `IAggregatorV3` interface
-# for the Chainlink ETH/USD price feed.
+# for the Chainlink native coin / USD price feed.
 from .interfaces import IAggregatorV3
 
 
@@ -70,12 +72,12 @@ MIN_COLLAT_RATIO: public(constant(uint256)) = 15 * 10**17
 SEQUENCER_GRACE_PERIOD: public(constant(uint256)) = 3600
 
 
-# @dev ETH a liquidator receives per mUSD repaid, valued
+# @dev Collateral a liquidator receives per mUSD repaid, valued
 # at the oracle price, 1e18-scaled (110%: a 10% bonus).
 LIQUIDATION_PENALTY: public(constant(uint256)) = 11 * 10**17
 
 
-# @dev Share of a redemption's ETH left with the borrower
+# @dev Share of a redemption's collateral left with the borrower
 # whose position is redeemed, 1e18-scaled (0.5%).
 REDEMPTION_FEE: public(constant(uint256)) = 5 * 10**15
 
@@ -89,7 +91,7 @@ MAX_STABILITY_FEE: public(constant(uint256)) = 10**17 // (365 * 86400)
 PRECISION: constant(uint256) = 10**18
 
 
-# @dev The ETH/USD price feed.
+# @dev The native coin / USD price feed.
 ORACLE: public(immutable(IAggregatorV3))
 
 
@@ -113,7 +115,7 @@ SEQUENCER_UPTIME_FEED: public(immutable(IAggregatorV3))
 STABILITY_FEE: public(immutable(uint256))
 
 
-# @dev Returns the ETH (in wei) locked by an `address`.
+# @dev Returns the native coin (in wei) locked by an `address`.
 collateral: public(HashMap[address, uint256])
 
 
@@ -135,26 +137,26 @@ rate_index: public(uint256)
 last_accrual: public(uint256)
 
 
-# @dev Returns the ETH (in wei) paid for surplus mUSD.
+# @dev Returns the native coin (in wei) paid for surplus mUSD.
 reserve: public(uint256)
 
 
 # @dev Returns the mUSD in circulation that no position
-# owes: debt written off when a position's ETH could not
+# owes: debt written off when a position's collateral could not
 # cover it, not yet absorbed by the surplus or reserve.
 bad_debt: public(uint256)
 
 
 # @dev Emitted when `user` locks `amount` wei
-# of ETH as collateral, either via `deposit` or
-# a plain ETH transfer.
+# of the native coin as collateral, either via
+# `deposit` or a plain transfer.
 event Deposit:
     user: indexed(address)
     amount: uint256
 
 
 # @dev Emitted when `user` withdraws `amount`
-# wei of ETH collateral.
+# wei of collateral.
 event Withdraw:
     user: indexed(address)
     amount: uint256
@@ -252,14 +254,14 @@ def __init__(
     self.last_accrual = block.timestamp
 
 
-# @dev Plain ETH transfers are treated as deposits.
+# @dev Plain native coin transfers are treated as deposits.
 @payable
 @external
 def __default__():
     self._deposit(msg.sender, msg.value)
 
 
-# @dev Locks the sent ETH as collateral for `msg.sender`.
+# @dev Locks the sent native coin as collateral for `msg.sender`.
 @payable
 @external
 def deposit():
@@ -299,12 +301,12 @@ def withdraw(amount: uint256):
 
 # @dev Liquidates an undercollateralized `user`. The caller
 # repays up to `max_repay` mUSD of their debt and receives
-# `LIQUIDATION_PENALTY` (110%) of it in ETH. Returns the
+# `LIQUIDATION_PENALTY` (110%) of it in collateral. Returns the
 # mUSD repaid.
 #
 # If the collateral covers 110% of the debt, the caller
 # repays only what brings the position back to 150%, and
-# the borrower keeps the rest of their ETH. Otherwise the
+# the borrower keeps the rest of their collateral. Otherwise the
 # caller repays what the collateral covers at 110%, takes
 # all of it, and the rest of the debt becomes bad debt.
 @external
@@ -347,12 +349,12 @@ def liquidate(user: address, max_repay: uint256) -> uint256:
     return repay
 
 
-# @dev Swaps `amount` of the caller's mUSD for $1 of ETH
+# @dev Swaps `amount` of the caller's mUSD for $1 of collateral
 # per mUSD from `user`'s position, at the oracle price,
 # less `REDEMPTION_FEE`, which stays with the borrower.
 # This puts a hard floor under the peg. Only healthy
 # positions can be redeemed; the caller picks which.
-# Returns the ETH paid.
+# Returns the collateral paid, in wei.
 @external
 def redeem(user: address, amount: uint256) -> uint256:
     self._accrue()
@@ -368,7 +370,7 @@ def redeem(user: address, amount: uint256) -> uint256:
 
 
 # @dev Burns `amount` mUSD of bad debt from the caller and
-# pays them its value in ETH from the reserve, at the
+# pays them its value in native coin from the reserve, at the
 # oracle price.
 @external
 def cover_bad_debt(amount: uint256) -> uint256:
@@ -385,10 +387,10 @@ def cover_bad_debt(amount: uint256) -> uint256:
     return eth
 
 
-# @dev Sells surplus mUSD for the sent ETH at the oracle
+# @dev Sells surplus mUSD for the sent native coin at the oracle
 # price. Interest is minted to the surplus, so this is how
-# it reaches borrowers who need it to repay. The ETH is
-# kept in the reserve.
+# it reaches borrowers who need it to repay. The coin
+# paid is kept in the reserve.
 @payable
 @external
 def buy_surplus() -> uint256:
