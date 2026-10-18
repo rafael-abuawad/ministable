@@ -6,9 +6,12 @@
 @notice The CDP engine lives in the token itself. Users lock
         ETH (via `deposit` or a plain ETH transfer) and mint
         mUSD against it at a minimum 150% collateral ratio.
-        Positions below 150% can be fully liquidated: the
-        liquidator burns the whole debt and receives all of
-        the position's ETH.
+        Debt accrues a fixed stability fee, minted to the
+        protocol's surplus. Positions below 150% can be
+        liquidated back to 150%: the liquidator repays debt
+        and receives 110% of it in ETH. Debt that a
+        position's ETH cannot cover becomes bad debt, which
+        the surplus and reserve absorb.
 @license GNU Affero General Public License v3.0 only
 @author rafael-abuawad
 """
@@ -64,6 +67,11 @@ MIN_COLLAT_RATIO: public(constant(uint256)) = 15 * 10**17
 # @dev Time the L2 sequencer must have been back up
 # before prices are trusted again, in seconds.
 SEQUENCER_GRACE_PERIOD: public(constant(uint256)) = 3600
+
+
+# @dev ETH a liquidator receives per mUSD repaid, valued
+# at the oracle price, 1e18-scaled (110%: a 10% bonus).
+LIQUIDATION_PENALTY: public(constant(uint256)) = 11 * 10**17
 
 
 # @dev Largest allowed stability fee: 10% a year, as a
@@ -125,6 +133,12 @@ last_accrual: public(uint256)
 reserve: public(uint256)
 
 
+# @dev Returns the mUSD in circulation that no position
+# owes: debt written off when a position's ETH could not
+# cover it, not yet absorbed by the surplus or reserve.
+bad_debt: public(uint256)
+
+
 # @dev Emitted when `user` locks `amount` wei
 # of ETH as collateral, either via `deposit` or
 # a plain ETH transfer.
@@ -168,14 +182,30 @@ event BuySurplus:
     amount: uint256
 
 
-# @dev Emitted when `liquidator` burns all of
-# `user`'s `debt` (mUSD) and receives all of
-# their `collateral` (wei).
+# @dev Emitted when `liquidator` burns `repaid` mUSD
+# of `user`'s debt and receives `seized` wei of their
+# collateral. `written_off` is debt the collateral
+# could not cover, moved to `bad_debt`.
 event Liquidate:
     liquidator: indexed(address)
     user: indexed(address)
-    debt: uint256
-    collateral: uint256
+    repaid: uint256
+    seized: uint256
+    written_off: uint256
+
+
+# @dev Emitted when `amount` mUSD of surplus is burned
+# against bad debt.
+event Settle:
+    amount: uint256
+
+
+# @dev Emitted when `caller` burns `amount` mUSD of
+# bad debt and receives `eth` wei from the reserve.
+event CoverBadDebt:
+    caller: indexed(address)
+    amount: uint256
+    eth: uint256
 
 
 @deploy
@@ -251,20 +281,72 @@ def withdraw(amount: uint256):
     raw_call(msg.sender, b"", value=amount)
 
 
-# @dev Liquidates an undercollateralized `user`: the caller
-# burns the user's whole debt and receives all of their ETH.
+# @dev Liquidates an undercollateralized `user`. The caller
+# repays up to `max_repay` mUSD of their debt and receives
+# `LIQUIDATION_PENALTY` (110%) of it in ETH. Returns the
+# mUSD repaid.
+#
+# If the collateral covers 110% of the debt, the caller
+# repays only what brings the position back to 150%, and
+# the borrower keeps the rest of their ETH. Otherwise the
+# caller repays what the collateral covers at 110%, takes
+# all of it, and the rest of the debt becomes bad debt.
 @external
-def liquidate(user: address):
+def liquidate(user: address, max_repay: uint256) -> uint256:
     self._accrue()
     assert self._collat_ratio(user) < MIN_COLLAT_RATIO # dev: [ministable] position healthy
+    p: uint256 = self._price()
     d: uint256 = self._debt(user)
     c: uint256 = self.collateral[user]
-    self.total_debt_shares -= self.debt_shares[user]
-    self.debt_shares[user] = 0
-    self.collateral[user] = 0
-    erc20._burn(msg.sender, d)
-    log Liquidate(liquidator=msg.sender, user=user, debt=d, collateral=c)
-    raw_call(msg.sender, b"", value=c)
+    # @dev USD value of the collateral, 1e36-scaled. Floored
+    # as in `_collat_ratio`, so `needed` below is positive.
+    value: uint256 = c * p // PRECISION * PRECISION
+
+    repay: uint256 = 0
+    seized: uint256 = 0
+    written_off: uint256 = 0
+    if value >= LIQUIDATION_PENALTY * d:
+        # @dev Solve (value - 1.1x) / (d - x) = 1.5 for x,
+        # rounding up so the position ends at or above 150%.
+        needed: uint256 = MIN_COLLAT_RATIO * d - value
+        step: uint256 = MIN_COLLAT_RATIO - LIQUIDATION_PENALTY
+        repay = min(min((needed + step - 1) // step, d), max_repay)
+        assert repay > 0 # dev: [ministable] zero repay
+        seized = min(repay * LIQUIDATION_PENALTY // p, c)
+        self._repay(user, repay)
+    else:
+        repay = value // LIQUIDATION_PENALTY
+        assert max_repay >= repay # dev: [ministable] repay too small
+        seized = c
+        written_off = d - repay
+        self.total_debt_shares -= self.debt_shares[user]
+        self.debt_shares[user] = 0
+        self.bad_debt += written_off
+
+    self.collateral[user] -= seized
+    erc20._burn(msg.sender, repay)
+    log Liquidate(liquidator=msg.sender, user=user, repaid=repay, seized=seized, written_off=written_off)
+    self._settle()
+    raw_call(msg.sender, b"", value=seized)
+    return repay
+
+
+# @dev Burns `amount` mUSD of bad debt from the caller and
+# pays them its value in ETH from the reserve, at the
+# oracle price.
+@external
+def cover_bad_debt(amount: uint256) -> uint256:
+    self._accrue()
+    assert amount > 0 # dev: [ministable] zero cover
+    assert amount <= self.bad_debt # dev: [ministable] cover exceeds bad debt
+    eth: uint256 = amount * PRECISION // self._price()
+    assert eth <= self.reserve # dev: [ministable] not enough reserve
+    self.bad_debt -= amount
+    self.reserve -= eth
+    erc20._burn(msg.sender, amount)
+    log CoverBadDebt(caller=msg.sender, amount=amount, eth=eth)
+    raw_call(msg.sender, b"", value=eth)
+    return eth
 
 
 # @dev Sells surplus mUSD for the sent ETH at the oracle
@@ -326,6 +408,18 @@ def _accrue():
     if fee > 0:
         erc20._mint(self, fee)
         log Accrue(amount=fee)
+        self._settle()
+
+
+# @dev Burns surplus mUSD against bad debt.
+@internal
+def _settle():
+    amount: uint256 = min(erc20.balanceOf[self], self.bad_debt)
+    if amount == 0:
+        return
+    self.bad_debt -= amount
+    erc20._burn(self, amount)
+    log Settle(amount=amount)
 
 
 # @dev Cuts `user`'s debt by `amount` mUSD. Repaying the

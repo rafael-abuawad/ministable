@@ -1,5 +1,6 @@
 from src import ministable
 from tests.utils.constants import (
+    LIQUIDATION_PENALTY,
     MIN_COLLAT_RATIO,
     ORACLE_DECIMALS,
     ORACLE_TIMEOUT,
@@ -35,3 +36,18 @@ def filter_logs(contract, event_name: str, computation=None) -> list:
         else contract.get_logs()
     )
     return [log for log in logs if type(log).__name__ == event_name]
+
+
+def liquidation(
+    collateral: int, debt: int, feed_price: int, max_repay: int, decimals: int = ORACLE_DECIMALS
+) -> tuple[int, int, int]:
+    """(repaid, seized, written_off) for a liquidation (mirrors `liquidate`)."""
+    price = feed_price * 10 ** (18 - decimals)
+    value = collateral * price // PRECISION * PRECISION
+    if value >= LIQUIDATION_PENALTY * debt:
+        step = MIN_COLLAT_RATIO - LIQUIDATION_PENALTY
+        needed = MIN_COLLAT_RATIO * debt - value
+        repay = min(-(-needed // step), debt, max_repay)
+        return repay, min(repay * LIQUIDATION_PENALTY // price, collateral), 0
+    repay = value // LIQUIDATION_PENALTY
+    return repay, collateral, debt - repay

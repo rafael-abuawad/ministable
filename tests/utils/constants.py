@@ -26,3 +26,6 @@ LIQUIDATION_PRICE = 1500 * 10**ORACLE_DECIMALS
 # Stability fee: 10% a year (the contract's cap), as a per-second rate.
 YEAR = 365 * 86400
 MAX_STABILITY_FEE = 10**17 // YEAR
+
+# A liquidator receives $1.10 of ETH per $1 of debt repaid.
+LIQUIDATION_PENALTY = 11 * 10**17

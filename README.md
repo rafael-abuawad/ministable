@@ -25,8 +25,16 @@ contract holds the ETH, tracks positions and mints/burns mUSD.
   mUSD with ETH at the oracle price through `buy_surplus()`, which is how the
   extra mUSD that borrowers owe as interest reaches the market. The ETH paid
   goes to the `reserve`.
-- **Liquidation:** any position below 150% can be fully liquidated. The
-  liquidator burns the position's entire mUSD debt and receives all of its ETH.
+- **Liquidation:** any position below 150% can be liquidated. The liquidator
+  repays mUSD and receives 110% of it in ETH (a 10% bonus). They repay only
+  what brings the position back to 150%, so the borrower keeps the rest of
+  their ETH.
+- **Bad debt:** if a position's ETH is worth less than 110% of its debt, the
+  liquidator repays what the ETH covers at 110% and takes all of it; the rest
+  of the debt is written off as `bad_debt`. The surplus absorbs bad debt
+  automatically. What it can't absorb, anyone can retire with
+  `cover_bad_debt(amount)`, which burns their mUSD for ETH from the reserve at
+  the oracle price.
 - **Token:** ERC-20 + EIP-2612 permit, 18 decimals.
 
 | Function | Description |
@@ -35,11 +43,12 @@ contract holds the ETH, tracks positions and mints/burns mUSD.
 | `mint(amount)` | Mint mUSD against your collateral (ratio ≥ 150%) |
 | `burn(amount)` | Burn mUSD to repay your debt |
 | `withdraw(amount)` | Withdraw ETH (ratio must stay ≥ 150%) |
-| `liquidate(user)` | Repay all of `user`'s debt, take all of their ETH (ratio < 150%) |
+| `liquidate(user, max_repay)` | Repay up to `max_repay` of `user`'s debt for 110% of it in ETH (ratio < 150%) |
+| `cover_bad_debt(amount)` | Burn `amount` mUSD of bad debt for its value in reserve ETH |
 | `buy_surplus()` | Buy surplus mUSD with the sent ETH at the oracle price |
 | `collat_ratio(user)` | 1e18-scaled collateral ratio (`1.5e18` = 150%) |
 | `collateral(user)` / `debt(user)` | Position state (`debt` includes interest) |
-| `surplus()` / `reserve()` | Protocol-held mUSD (unsold interest) and ETH (from surplus sales) |
+| `surplus()` / `reserve()` / `bad_debt()` | Protocol-held mUSD (unsold interest), ETH (from surplus sales) and unbacked mUSD |
 
 ## Quickstart
 
