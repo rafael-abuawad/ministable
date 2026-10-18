@@ -4,7 +4,13 @@ deposits, mints, burns, withdrawals, transfers, price moves and liquidations."""
 import boa
 from hypothesis import settings
 from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, precondition, rule
+from hypothesis.stateful import (
+    RuleBasedStateMachine,
+    initialize,
+    invariant,
+    precondition,
+    rule,
+)
 
 from src import ministable
 from tests.mocks.deployers import MOCK_AGGREGATOR
@@ -29,7 +35,9 @@ class SolvencyMachine(RuleBasedStateMachine):
     @initialize()
     def setup(self):
         self.oracle = MOCK_AGGREGATOR.deploy(ETH_USD_PRICE)
-        self.stable = ministable.deploy("ministable", "mUSD", 18, "ministable", "1", self.oracle.address)
+        self.stable = ministable.deploy(
+            "ministable", "mUSD", 18, "ministable", "1", self.oracle.address
+        )
         self.feed_price = ETH_USD_PRICE
         self.actors = [boa.env.generate_address(f"actor{i}") for i in range(N_ACTORS)]
         for actor in self.actors:
@@ -56,7 +64,11 @@ class SolvencyMachine(RuleBasedStateMachine):
         return value * PRECISION // debt
 
     def _underwater(self) -> list:
-        return [a for a in self.actors if self._ratio(self.collateral[a], self.debt[a]) < MIN_COLLAT_RATIO]
+        return [
+            a
+            for a in self.actors
+            if self._ratio(self.collateral[a], self.debt[a]) < MIN_COLLAT_RATIO
+        ]
 
     # ================= Rules =================
 
@@ -72,7 +84,10 @@ class SolvencyMachine(RuleBasedStateMachine):
     @rule(i=actor_st, amount=musd_amount_st)
     def mint(self, i, amount):
         actor = self.actors[i]
-        healthy = self._ratio(self.collateral[actor], self.debt[actor] + amount) >= MIN_COLLAT_RATIO
+        healthy = (
+            self._ratio(self.collateral[actor], self.debt[actor] + amount)
+            >= MIN_COLLAT_RATIO
+        )
         if healthy:
             self.stable.mint(amount, sender=actor)
             self.debt[actor] += amount
@@ -90,7 +105,9 @@ class SolvencyMachine(RuleBasedStateMachine):
     @rule(i=actor_st)
     def mint_max(self, i):
         actor = self.actors[i]
-        amount = max_mintable(self.collateral[actor], self.feed_price) - self.debt[actor]
+        amount = (
+            max_mintable(self.collateral[actor], self.feed_price) - self.debt[actor]
+        )
         if amount > 0:
             self.stable.mint(amount, sender=actor)
             self.debt[actor] += amount
@@ -111,7 +128,8 @@ class SolvencyMachine(RuleBasedStateMachine):
     def withdraw(self, i, amount):
         actor = self.actors[i]
         ok = amount <= self.collateral[actor] and (
-            self._ratio(self.collateral[actor] - amount, self.debt[actor]) >= MIN_COLLAT_RATIO
+            self._ratio(self.collateral[actor] - amount, self.debt[actor])
+            >= MIN_COLLAT_RATIO
         )
         if ok:
             self.stable.withdraw(amount, sender=actor)
@@ -144,7 +162,9 @@ class SolvencyMachine(RuleBasedStateMachine):
     @rule(i=actor_st, j=actor_st)
     def liquidate(self, i, j):
         liquidator, user = self.actors[i], self.actors[j]
-        unhealthy = self._ratio(self.collateral[user], self.debt[user]) < MIN_COLLAT_RATIO
+        unhealthy = (
+            self._ratio(self.collateral[user], self.debt[user]) < MIN_COLLAT_RATIO
+        )
         if unhealthy and self.balance[liquidator] >= self.debt[user]:
             self._liquidate(liquidator, user)
         else:
@@ -193,8 +213,13 @@ class SolvencyMachine(RuleBasedStateMachine):
     @invariant()
     def no_eth_created_or_destroyed(self):
         held = sum(boa.env.get_balance(a) for a in self.collateral)
-        assert held + boa.env.get_balance(self.stable.address) == N_ACTORS * STARTING_ETH + KEEPER_ETH
+        assert (
+            held + boa.env.get_balance(self.stable.address)
+            == N_ACTORS * STARTING_ETH + KEEPER_ETH
+        )
 
 
 TestSolvency = SolvencyMachine.TestCase
-TestSolvency.settings = settings(max_examples=100, stateful_step_count=40, deadline=None)
+TestSolvency.settings = settings(
+    max_examples=100, stateful_step_count=40, deadline=None
+)

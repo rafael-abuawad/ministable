@@ -41,7 +41,9 @@ def test_rising_price_frees_collateral(stable, oracle, borrower):
     assert stable.collat_ratio(borrower) >= MIN_COLLAT_RATIO
 
 
-def test_liquidation_with_purchased_musd(stable, oracle, borrower, liquidator, recipient):
+def test_liquidation_with_purchased_musd(
+    stable, oracle, borrower, liquidator, recipient
+):
     """Liquidator buys mUSD from a third party, then liquidates the borrower."""
     # ================= Setup =================
     stable.deposit(value=ETH, sender=borrower)

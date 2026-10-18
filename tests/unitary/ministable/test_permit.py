@@ -54,7 +54,9 @@ def test_permit_sets_allowance(stable, signer, recipient):
     deadline = _deadline()
     v, r, s = _sign_permit(stable, signer, recipient, 100 * ETH, deadline)
 
-    stable.permit(signer.address, recipient, 100 * ETH, deadline, v, r, s, sender=recipient)
+    stable.permit(
+        signer.address, recipient, 100 * ETH, deadline, v, r, s, sender=recipient
+    )
 
     assert stable.allowance(signer.address, recipient) == 100 * ETH
     assert stable.nonces(signer.address) == 1
@@ -92,7 +94,13 @@ def test_domain_separator(stable):
     expected = keccak(
         encode(
             ["bytes32", "bytes32", "bytes32", "uint256", "address"],
-            [EIP712_DOMAIN_TYPE_HASH, keccak(text=name), keccak(text=version), chain_id, verifying_contract],
+            [
+                EIP712_DOMAIN_TYPE_HASH,
+                keccak(text=name),
+                keccak(text=version),
+                chain_id,
+                verifying_contract,
+            ],
         )
     )
 

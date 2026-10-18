@@ -14,5 +14,9 @@ def max_mintable(collateral: int, feed_price: int) -> int:
 
 def filter_logs(contract, event_name: str, computation=None) -> list:
     """Decoded logs of `contract`'s last call (or of `computation`) named `event_name`."""
-    logs = contract.get_logs(computation) if computation is not None else contract.get_logs()
+    logs = (
+        contract.get_logs(computation)
+        if computation is not None
+        else contract.get_logs()
+    )
     return [log for log in logs if type(log).__name__ == event_name]

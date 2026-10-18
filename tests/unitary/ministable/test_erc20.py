@@ -60,7 +60,9 @@ def test_transfer_from(stable, borrower_position, recipient):
     assert stable.allowance(borrower_position, recipient) == 40 * ETH
 
 
-def test_transfer_from_infinite_allowance_not_spent(stable, borrower_position, recipient):
+def test_transfer_from_infinite_allowance_not_spent(
+    stable, borrower_position, recipient
+):
     max_uint = 2**256 - 1
     stable.approve(recipient, max_uint, sender=borrower_position)
 
@@ -69,8 +71,12 @@ def test_transfer_from_infinite_allowance_not_spent(stable, borrower_position, r
     assert stable.allowance(borrower_position, recipient) == max_uint
 
 
-def test_transfer_from_exceeding_allowance_reverts(stable, borrower_position, recipient):
+def test_transfer_from_exceeding_allowance_reverts(
+    stable, borrower_position, recipient
+):
     stable.approve(recipient, 10 * ETH, sender=borrower_position)
 
     with boa.reverts(dev="[erc20] insufficient allowance"):
-        stable.transferFrom(borrower_position, recipient, 10 * ETH + 1, sender=recipient)
+        stable.transferFrom(
+            borrower_position, recipient, 10 * ETH + 1, sender=recipient
+        )

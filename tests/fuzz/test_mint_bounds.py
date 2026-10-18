@@ -30,8 +30,14 @@ def test_max_mint_is_exact_bound(stable, oracle, borrower, collateral, feed_pric
 
 
 @settings(max_examples=200, deadline=None)
-@given(collateral=collateral_st, feed_price=feed_price_st, fraction=st.integers(min_value=0, max_value=100))
-def test_max_withdraw_is_exact_bound(stable, oracle, borrower, collateral, feed_price, fraction):
+@given(
+    collateral=collateral_st,
+    feed_price=feed_price_st,
+    fraction=st.integers(min_value=0, max_value=100),
+)
+def test_max_withdraw_is_exact_bound(
+    stable, oracle, borrower, collateral, feed_price, fraction
+):
     """After minting, withdrawing past the 150% line always reverts."""
     debt = max_mintable(collateral, feed_price) * fraction // 100
     assume(debt > 0)
@@ -43,7 +49,11 @@ def test_max_withdraw_is_exact_bound(stable, oracle, borrower, collateral, feed_
         stable.mint(debt, sender=borrower)
 
         # Smallest collateral that still backs `debt`.
-        required = next(c for c in _candidates(debt, feed_price) if max_mintable(c, feed_price) >= debt)
+        required = next(
+            c
+            for c in _candidates(debt, feed_price)
+            if max_mintable(c, feed_price) >= debt
+        )
         free = collateral - required
 
         with boa.reverts(dev="[ministable] undercollateralized"):
