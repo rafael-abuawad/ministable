@@ -14,6 +14,12 @@ from ethereum.ercs import IERC20
 implements: IERC20
 
 
+# @dev We import and implement the `IERC20Detailed` interface,
+# which is a built-in interface of the Vyper compiler.
+from ethereum.ercs import IERC20Detailed
+implements: IERC20Detailed
+
+
 # @dev We import and implement the `IERC20Permit`
 # interface, which is written using standard Vyper
 # syntax.
@@ -70,6 +76,30 @@ _PERMIT_TYPE_HASH: constant(bytes32) = keccak256(
 )
 
 
+# @dev Returns the name of the token.
+# @notice If you declare a variable as `public`,
+# Vyper automatically generates an `external`
+# getter function for the variable. Furthermore,
+# to preserve consistency with the interface for
+# the optional metadata functions of the ERC-20
+# standard, we use lower case letters for the
+# `immutable` variables `name`, `symbol`, and
+# `decimals`.
+name: public(immutable(String[25]))
+
+
+# @dev Returns the symbol of the token.
+# @notice See comment on lower case letters
+# above at `name`.
+symbol: public(immutable(String[5]))
+
+
+# @dev Returns the decimal places of the token.
+# @notice See comment on lower case letters
+# above at `name`.
+decimals: public(immutable(uint8))
+
+
 # @dev Returns the amount of tokens owned by an `address`.
 balanceOf: public(HashMap[address, uint256])
 
@@ -86,7 +116,6 @@ allowance: public(HashMap[address, HashMap[address, uint256]])
 totalSupply: public(uint256)
 
 
-
 # @dev Returns the current on-chain tracked nonce
 # of `address`.
 nonces: public(HashMap[address, uint256])
@@ -94,7 +123,16 @@ nonces: public(HashMap[address, uint256])
 
 @deploy
 @payable
-def __init__(name_eip712_: String[50], version_eip712_: String[20]):
+def __init__(
+    name_: String[25],
+    symbol_: String[5],
+    decimals_: uint8,
+    name_eip712_: String[50],
+    version_eip712_: String[20],
+):
+    name = name_
+    symbol = symbol_
+    decimals = decimals_
     eip712_domain_separator.__init__(name_eip712_, version_eip712_)
 
 

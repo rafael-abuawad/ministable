@@ -122,31 +122,15 @@ event Liquidate:
 
 @deploy
 @payable
-def __init__(oracle: IAggregatorV3):
+def __init__(
+    name_: String[25],
+    symbol_: String[5],
+    decimals_: uint8,
+    oracle: IAggregatorV3,
+):
     ow.__init__()
-    erc20.__init__("ministable", "1")
+    erc20.__init__(name_, symbol_, decimals_, name_, "1")
     ORACLE = oracle
-
-
-# @dev Returns the name of the token.
-@view
-@external
-def name() -> String[10]:
-    return "ministable"
-
-
-# @dev Returns the symbol of the token.
-@view
-@external
-def symbol() -> String[4]:
-    return "mUSD"
-
-
-# @dev Returns the decimal places of the token.
-@view
-@external
-def decimals() -> uint8:
-    return 18
 
 
 # @dev Locks the sent ETH as collateral for `msg.sender`.
