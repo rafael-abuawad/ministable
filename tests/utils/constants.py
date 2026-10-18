@@ -29,3 +29,6 @@ MAX_STABILITY_FEE = 10**17 // YEAR
 
 # A liquidator receives $1.10 of ETH per $1 of debt repaid.
 LIQUIDATION_PENALTY = 11 * 10**17
+
+# Share of a redemption's ETH left with the redeemed borrower (0.5%).
+REDEMPTION_FEE = 5 * 10**15

@@ -35,6 +35,11 @@ contract holds the ETH, tracks positions and mints/burns mUSD.
   automatically. What it can't absorb, anyone can retire with
   `cover_bad_debt(amount)`, which burns their mUSD for ETH from the reserve at
   the oracle price.
+- **Redemptions:** anyone can swap mUSD for $1 of ETH per mUSD from any
+  healthy position with `redeem(user, amount)`, less a 0.5% fee that stays with
+  the borrower. This puts a hard floor under the peg. The redeemer picks the
+  position: sorting positions by risk on-chain (as Liquity does) costs too much
+  for a contract this small, so any healthy position can be redeemed against.
 - **Token:** ERC-20 + EIP-2612 permit, 18 decimals.
 
 | Function | Description |
@@ -44,6 +49,7 @@ contract holds the ETH, tracks positions and mints/burns mUSD.
 | `burn(amount)` | Burn mUSD to repay your debt |
 | `withdraw(amount)` | Withdraw ETH (ratio must stay ≥ 150%) |
 | `liquidate(user, max_repay)` | Repay up to `max_repay` of `user`'s debt for 110% of it in ETH (ratio < 150%) |
+| `redeem(user, amount)` | Burn `amount` mUSD of `user`'s debt for $1 of their ETH each, less 0.5% (ratio ≥ 150%) |
 | `cover_bad_debt(amount)` | Burn `amount` mUSD of bad debt for its value in reserve ETH |
 | `buy_surplus()` | Buy surplus mUSD with the sent ETH at the oracle price |
 | `collat_ratio(user)` | 1e18-scaled collateral ratio (`1.5e18` = 150%) |
@@ -87,12 +93,30 @@ mainnet also needs `MAINNET_RPC_URL`.
 
 | Directory | Contents |
 | --- | --- |
-| `tests/unitary/ministable/` | One file per behavior: deposit, mint, burn, withdraw, liquidate, oracle, collateral ratio, ERC-20, permit |
+| `tests/unitary/ministable/` | One file per behavior: deposit, mint, burn, withdraw, liquidate, redeem, stability fee, oracle, collateral ratio, ERC-20, permit |
 | `tests/integration/` | Multi-step position lifecycles (open/close, rescue, liquidation with bought mUSD) |
-| `tests/fuzz/` | Hypothesis: exact mint/withdraw bounds, and a stateful model checking solvency invariants |
+| `tests/fuzz/` | Hypothesis: exact mint/withdraw bounds, and a stateful model of interest, liquidations, bad debt, surplus and redemptions checking solvency invariants |
 | `tests/mocks/` | Mock Chainlink feed and a contract position holder (ETH rejection, reentrancy) |
 
 ```bash
 mox test tests/unitary   # fast unit tests only
 mox test tests/fuzz      # property + stateful fuzzing (~45s)
+FUZZ_EXAMPLES=1000 mox test tests/fuzz   # deeper stateful run (~10 min)
 ```
+
+The stateful model checks after every step that:
+
+- every position, balance, the rate index, surplus, reserve and bad debt match
+  an independent reference model;
+- total debt plus bad debt equals mUSD supply (plus interest not yet minted),
+  with rounding only ever in the protocol's favour;
+- the ETH the contract holds equals total collateral plus the reserve, and no
+  ETH is created or destroyed;
+- a liquidation not capped by `max_repay` leaves the position at 150% or more,
+  and a redemption never lowers the redeemed position's ratio.
+
+## Status
+
+ministable has not been audited. Mainnet and Arbitrum are configured (with
+`prompt_live = true`), but don't deploy there before an outside review of the
+frozen code, such as a competitive audit.

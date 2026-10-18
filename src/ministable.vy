@@ -11,7 +11,8 @@
         liquidated back to 150%: the liquidator repays debt
         and receives 110% of it in ETH. Debt that a
         position's ETH cannot cover becomes bad debt, which
-        the surplus and reserve absorb.
+        the surplus and reserve absorb. Anyone can redeem
+        mUSD for $1 of ETH from a healthy position.
 @license GNU Affero General Public License v3.0 only
 @author rafael-abuawad
 """
@@ -72,6 +73,11 @@ SEQUENCER_GRACE_PERIOD: public(constant(uint256)) = 3600
 # @dev ETH a liquidator receives per mUSD repaid, valued
 # at the oracle price, 1e18-scaled (110%: a 10% bonus).
 LIQUIDATION_PENALTY: public(constant(uint256)) = 11 * 10**17
+
+
+# @dev Share of a redemption's ETH left with the borrower
+# whose position is redeemed, 1e18-scaled (0.5%).
+REDEMPTION_FEE: public(constant(uint256)) = 5 * 10**15
 
 
 # @dev Largest allowed stability fee: 10% a year, as a
@@ -192,6 +198,16 @@ event Liquidate:
     repaid: uint256
     seized: uint256
     written_off: uint256
+
+
+# @dev Emitted when `redeemer` burns `amount` mUSD of
+# `user`'s debt and receives `eth` wei of their
+# collateral.
+event Redeem:
+    redeemer: indexed(address)
+    user: indexed(address)
+    amount: uint256
+    eth: uint256
 
 
 # @dev Emitted when `amount` mUSD of surplus is burned
@@ -329,6 +345,26 @@ def liquidate(user: address, max_repay: uint256) -> uint256:
     self._settle()
     raw_call(msg.sender, b"", value=seized)
     return repay
+
+
+# @dev Swaps `amount` of the caller's mUSD for $1 of ETH
+# per mUSD from `user`'s position, at the oracle price,
+# less `REDEMPTION_FEE`, which stays with the borrower.
+# This puts a hard floor under the peg. Only healthy
+# positions can be redeemed; the caller picks which.
+# Returns the ETH paid.
+@external
+def redeem(user: address, amount: uint256) -> uint256:
+    self._accrue()
+    assert amount > 0 # dev: [ministable] zero redeem
+    assert self._collat_ratio(user) >= MIN_COLLAT_RATIO # dev: [ministable] position unhealthy
+    eth: uint256 = amount * (PRECISION - REDEMPTION_FEE) // self._price()
+    self._repay(user, amount)
+    self.collateral[user] -= eth
+    erc20._burn(msg.sender, amount)
+    log Redeem(redeemer=msg.sender, user=user, amount=amount, eth=eth)
+    raw_call(msg.sender, b"", value=eth)
+    return eth
 
 
 # @dev Burns `amount` mUSD of bad debt from the caller and

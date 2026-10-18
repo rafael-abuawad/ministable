@@ -1,6 +1,7 @@
 """Stateful fuzzing: a reference model shadows ministable through random
 deposits, mints, burns, withdrawals, transfers, price moves, interest,
-surplus purchases, partial and insolvent liquidations and bad-debt cover."""
+surplus purchases, redemptions, partial and insolvent liquidations and
+bad-debt cover."""
 
 import os
 
@@ -24,6 +25,7 @@ from tests.utils.constants import (
     MIN_COLLAT_RATIO,
     ORACLE_DECIMALS,
     PRECISION,
+    REDEMPTION_FEE,
 )
 from tests.utils.helpers import deploy_stable, liquidation, max_mintable
 
@@ -228,6 +230,35 @@ class SolvencyMachine(RuleBasedStateMachine):
         else:
             with boa.reverts():
                 self.stable.withdraw(amount, sender=actor)
+
+    @rule(i=actor_st, j=actor_st, amount=musd_amount_st)
+    def redeem(self, i, j, amount):
+        redeemer, user = self.actors[i], self.actors[j]
+        self.steps += 1
+        debt, collateral = self._debt(user), self.collateral[user]
+        amount = min(amount, self.balance[redeemer])
+        if amount == 0:
+            with boa.reverts(dev="[ministable] zero redeem"):
+                self.stable.redeem(user, amount, sender=redeemer)
+        elif self._ratio(collateral, debt) < MIN_COLLAT_RATIO:
+            with boa.reverts(dev="[ministable] position unhealthy"):
+                self.stable.redeem(user, amount, sender=redeemer)
+        elif amount > debt:
+            with boa.reverts(dev="[ministable] repay exceeds debt"):
+                self.stable.redeem(user, amount, sender=redeemer)
+        else:
+            eth = amount * (PRECISION - REDEMPTION_FEE) // (self.feed_price * 10**10)
+            ratio = self._ratio(collateral, debt)
+            redeemer_eth = boa.env.get_balance(redeemer)
+            assert self.stable.redeem(user, amount, sender=redeemer) == eth
+            self._accrue()
+            assert boa.env.get_balance(redeemer) == redeemer_eth + eth
+            removed = self.shares[user] if amount == debt else amount * PRECISION // self.index
+            self.shares[user] -= removed
+            self.collateral[user] -= eth
+            self.balance[redeemer] -= amount
+            # Redeeming a healthy position never lowers its ratio.
+            assert self._ratio(self.collateral[user], self._debt(user)) >= ratio
 
     @rule(i=actor_st, j=actor_st, amount=musd_amount_st)
     def transfer(self, i, j, amount):
