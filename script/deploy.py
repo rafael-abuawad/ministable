@@ -88,6 +88,10 @@ def _check_price_feed(feed: ABIContract | VyperContract):
 # ================= ministable =================
 
 
+def _constructor_args(feed: ABIContract | VyperContract) -> tuple:
+    return (NAME, SYMBOL, DECIMALS, EIP712_NAME, EIP712_VERSION, feed.address)
+
+
 def _check_deployment(stable: VyperContract, feed: ABIContract | VyperContract):
     _require(stable.ORACLE() == feed.address, "ORACLE does not match the price feed.")
     _require(
@@ -156,9 +160,7 @@ def deploy() -> VyperContract:
     feed = _get_price_feed(network)
     _check_price_feed(feed)
 
-    stable: VyperContract = ministable.deploy(
-        NAME, SYMBOL, DECIMALS, EIP712_NAME, EIP712_VERSION, feed.address
-    )
+    stable: VyperContract = ministable.deploy(*_constructor_args(feed))
     _check_deployment(stable, feed)
     print(f"{NAME} ({SYMBOL}) deployed at {stable.address}")
 
