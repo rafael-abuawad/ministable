@@ -1,6 +1,4 @@
 import boa
-import pytest
-from eth.exceptions import Revert
 
 from tests.utils.constants import ETH
 from tests.utils.helpers import filter_logs
