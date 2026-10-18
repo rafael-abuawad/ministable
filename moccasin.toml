@@ -4,6 +4,11 @@ out = "out"
 dot_env = ".env"
 dependencies = ["snekmate"]
 
+# Chainlink ETH/USD feed (8 decimals). Live networks pin the real feed
+# address below; local networks (pyevm, anvil) deploy a mock instead.
+[networks.contracts.eth_usd_price_feed]
+deployer_script = "deploy_mocks.py"
+
 [networks.pyevm]
 is_zksync = false
 
@@ -16,6 +21,23 @@ chain_id = 31337
 [networks.sepolia]
 url = "https://ethereum-sepolia-rpc.publicnode.com"
 chain_id = 11155111
+explorer_uri = "https://api.etherscan.io/v2/api"
+explorer_type = "etherscan"
+explorer_api_key = "${ETHERSCAN_API_KEY}"
+
+[networks.sepolia.contracts.eth_usd_price_feed]
+address = "0x694AA1769357215DE4FAC081bf1f309aDC325306"
+
+[networks.mainnet]
+url = "${MAINNET_RPC_URL}"
+chain_id = 1
+explorer_uri = "https://api.etherscan.io/v2/api"
+explorer_type = "etherscan"
+explorer_api_key = "${ETHERSCAN_API_KEY}"
+prompt_live = true
+
+[networks.mainnet.contracts.eth_usd_price_feed]
+address = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
 
 [networks.zksync-sepolia]
 url = "https://sepolia.era.zksync.dev"
