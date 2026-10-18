@@ -135,13 +135,6 @@ def __init__(
     ORACLE = oracle
 
 
-# @dev Locks the sent ETH as collateral for `msg.sender`.
-@payable
-@external
-def deposit():
-    self._deposit(msg.sender, msg.value)
-
-
 # @dev Plain ETH transfers are treated as deposits.
 @payable
 @external
@@ -149,11 +142,18 @@ def __default__():
     self._deposit(msg.sender, msg.value)
 
 
+# @dev Locks the sent ETH as collateral for `msg.sender`.
+@payable
+@external
+def deposit():
+    self._deposit(msg.sender, msg.value)
+
+
 # @dev Mints `amount` mUSD against the caller's collateral.
 @external
 def mint(amount: uint256):
     self.debt[msg.sender] += amount
-    assert self._collat_ratio(msg.sender) >= MIN_COLLAT_RATIO, "ministable: undercollateralized"
+    assert self._collat_ratio(msg.sender) >= MIN_COLLAT_RATIO # dev: [ministable] undercollateralized
     erc20._mint(msg.sender, amount)
     log Mint(user=msg.sender, amount=amount)
 
@@ -170,7 +170,7 @@ def burn(amount: uint256):
 @external
 def withdraw(amount: uint256):
     self.collateral[msg.sender] -= amount
-    assert self._collat_ratio(msg.sender) >= MIN_COLLAT_RATIO, "ministable: undercollateralized"
+    assert self._collat_ratio(msg.sender) >= MIN_COLLAT_RATIO # dev: [ministable] undercollateralized
     log Withdraw(user=msg.sender, amount=amount)
     raw_call(msg.sender, b"", value=amount)
 
@@ -179,7 +179,7 @@ def withdraw(amount: uint256):
 # burns the user's whole debt and receives all of their ETH.
 @external
 def liquidate(user: address):
-    assert self._collat_ratio(user) < MIN_COLLAT_RATIO, "ministable: position healthy"
+    assert self._collat_ratio(user) < MIN_COLLAT_RATIO # dev: [ministable] position healthy
     d: uint256 = self.debt[user]
     c: uint256 = self.collateral[user]
     self.debt[user] = 0
@@ -198,7 +198,7 @@ def collat_ratio(user: address) -> uint256:
 
 @internal
 def _deposit(user: address, amount: uint256):
-    assert amount > 0, "ministable: zero deposit"
+    assert amount > 0 # dev: [ministable] zero deposit
     self.collateral[user] += amount
     log Deposit(user=user, amount=amount)
 
@@ -212,8 +212,8 @@ def _price() -> uint256:
     updated_at: uint256 = 0
     answered_in_round: uint80 = 0
     round_id, answer, started_at, updated_at, answered_in_round = staticcall ORACLE.latestRoundData()
-    assert answer > 0, "ministable: invalid price"
-    assert block.timestamp - updated_at <= ORACLE_TIMEOUT, "ministable: stale price"
+    assert answer > 0 # dev: [ministable] invalid price
+    assert block.timestamp - updated_at <= ORACLE_TIMEOUT # dev: [ministable] stale price
     # @dev 8-decimal feed scaled to 18 decimals.
     return convert(answer, uint256) * 10**10
 

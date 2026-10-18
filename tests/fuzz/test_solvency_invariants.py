@@ -78,7 +78,7 @@ class SolvencyMachine(RuleBasedStateMachine):
             self.debt[actor] += amount
             self.balance[actor] += amount
         else:
-            with boa.reverts("ministable: undercollateralized"):
+            with boa.reverts(dev="[ministable] undercollateralized"):
                 self.stable.mint(amount, sender=actor)
 
     @rule(i=actor_st, amount=eth_amount_st)
@@ -161,7 +161,7 @@ class SolvencyMachine(RuleBasedStateMachine):
     def keeper_liquidate_healthy(self, j):
         user = self.actors[j]
         if self._ratio(self.collateral[user], self.debt[user]) >= MIN_COLLAT_RATIO:
-            with boa.reverts("ministable: position healthy"):
+            with boa.reverts(dev="[ministable] position healthy"):
                 self.stable.liquidate(user, sender=self.keeper)
 
     def _liquidate(self, liquidator, user):

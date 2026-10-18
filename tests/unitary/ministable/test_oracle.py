@@ -21,7 +21,7 @@ def test_stale_price_reverts(stable, borrower):
     stable.deposit(value=ETH, sender=borrower)
     boa.env.time_travel(seconds=ORACLE_TIMEOUT + 1)
 
-    with boa.reverts("ministable: stale price"):
+    with boa.reverts(dev="[ministable] stale price"):
         stable.mint(1, sender=borrower)
 
 
@@ -37,7 +37,7 @@ def test_zero_price_reverts(stable, oracle, borrower):
     stable.deposit(value=ETH, sender=borrower)
     oracle.set_answer(0)
 
-    with boa.reverts("ministable: invalid price"):
+    with boa.reverts(dev="[ministable] invalid price"):
         stable.mint(1, sender=borrower)
 
 
@@ -45,12 +45,12 @@ def test_negative_price_reverts(stable, oracle, borrower):
     stable.deposit(value=ETH, sender=borrower)
     oracle.set_answer(-1)
 
-    with boa.reverts("ministable: invalid price"):
+    with boa.reverts(dev="[ministable] invalid price"):
         stable.mint(1, sender=borrower)
 
 
 def test_collat_ratio_view_reverts_on_bad_price(stable, oracle, borrower_position):
     oracle.set_answer(0)
 
-    with boa.reverts("ministable: invalid price"):
+    with boa.reverts(dev="[ministable] invalid price"):
         stable.collat_ratio(borrower_position)

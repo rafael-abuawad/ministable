@@ -64,11 +64,11 @@ def test_deposit_is_per_account(stable, borrower, liquidator):
 
 
 def test_zero_deposit_reverts(stable, borrower):
-    with boa.reverts("ministable: zero deposit"):
+    with boa.reverts(dev="[ministable] zero deposit"):
         stable.deposit(sender=borrower)
 
 
 def test_zero_plain_transfer_reverts(stable, borrower):
-    # `env.raw_call` surfaces the raw py-evm revert, not a BoaError.
-    with pytest.raises(Revert, match="ministable: zero deposit"):
-        boa.env.raw_call(stable.address, sender=borrower)
+    # Call `__default__` through the contract (not `env.raw_call`) so boa can resolve the dev reason.
+    with boa.reverts(dev="[ministable] zero deposit"):
+        stable.__default__(sender=borrower)

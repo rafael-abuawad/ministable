@@ -64,7 +64,7 @@ def test_liquidate_at_exact_min_ratio_reverts(stable, oracle, borrower_position,
     oracle.set_answer(LIQUIDATION_PRICE)
     assert stable.collat_ratio(borrower_position) == MIN_COLLAT_RATIO
 
-    with boa.reverts("ministable: position healthy"):
+    with boa.reverts(dev="[ministable] position healthy"):
         stable.liquidate(borrower_position, sender=funded_liquidator)
 
 
@@ -77,14 +77,14 @@ def test_liquidate_just_below_min_ratio(stable, oracle, borrower_position, funde
 
 
 def test_liquidate_healthy_reverts(stable, borrower_position, funded_liquidator):
-    with boa.reverts("ministable: position healthy"):
+    with boa.reverts(dev="[ministable] position healthy"):
         stable.liquidate(borrower_position, sender=funded_liquidator)
 
 
 def test_liquidate_debt_free_position_reverts(stable, borrower, funded_liquidator):
     stable.deposit(value=ETH, sender=borrower)
 
-    with boa.reverts("ministable: position healthy"):
+    with boa.reverts(dev="[ministable] position healthy"):
         stable.liquidate(borrower, sender=funded_liquidator)
 
 
@@ -101,7 +101,7 @@ def test_liquidate_twice_reverts(stable, oracle, borrower_position, funded_liqui
     oracle.set_answer(to_feed_price(1400))
     stable.liquidate(borrower_position, sender=funded_liquidator)
 
-    with boa.reverts("ministable: position healthy"):
+    with boa.reverts(dev="[ministable] position healthy"):
         stable.liquidate(borrower_position, sender=funded_liquidator)
 
 
@@ -109,7 +109,7 @@ def test_liquidate_with_stale_price_reverts(stable, oracle, borrower_position, f
     oracle.set_answer(to_feed_price(1400))
     boa.env.time_travel(seconds=stable.ORACLE_TIMEOUT() + 1)
 
-    with boa.reverts("ministable: stale price"):
+    with boa.reverts(dev="[ministable] stale price"):
         stable.liquidate(borrower_position, sender=funded_liquidator)
 
 

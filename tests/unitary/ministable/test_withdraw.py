@@ -48,12 +48,12 @@ def test_withdraw_down_to_limit(stable, borrower_position):
 
 
 def test_withdraw_one_wei_past_limit_reverts(stable, borrower_position):
-    with boa.reverts("ministable: undercollateralized"):
+    with boa.reverts(dev="[ministable] undercollateralized"):
         stable.withdraw(ETH // 4 + 1, sender=borrower_position)
 
 
 def test_withdraw_breaking_ratio_reverts(stable, borrower_position):
-    with boa.reverts("ministable: undercollateralized"):
+    with boa.reverts(dev="[ministable] undercollateralized"):
         stable.withdraw(ETH // 2, sender=borrower_position)
 
 
