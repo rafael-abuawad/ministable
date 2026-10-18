@@ -126,10 +126,12 @@ def __init__(
     name_: String[25],
     symbol_: String[5],
     decimals_: uint8,
+    name_eip712_: String[50],
+    version_eip712_: String[20],
     oracle: IAggregatorV3,
 ):
     ow.__init__()
-    erc20.__init__(name_, symbol_, decimals_, name_, "1")
+    erc20.__init__(name_, symbol_, decimals_, name_eip712_, version_eip712_)
     ORACLE = oracle
 
 

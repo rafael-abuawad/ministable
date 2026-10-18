@@ -7,7 +7,7 @@ ETH_USD_PRICE = 2000 * 10**8
 
 def deploy() -> VyperContract:
     oracle: VyperContract = mock_aggregator.deploy(ETH_USD_PRICE)
-    stable: VyperContract = ministable.deploy("ministable", "mUSD", 18, oracle.address)
+    stable: VyperContract = ministable.deploy("ministable", "mUSD", 18, "ministable", "1", oracle.address)
     print(f"ministable (mUSD) deployed at {stable.address}, oracle at {oracle.address}")
     return stable
 

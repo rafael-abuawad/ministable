@@ -29,7 +29,7 @@ class SolvencyMachine(RuleBasedStateMachine):
     @initialize()
     def setup(self):
         self.oracle = MOCK_AGGREGATOR.deploy(ETH_USD_PRICE)
-        self.stable = ministable.deploy("ministable", "mUSD", 18, self.oracle.address)
+        self.stable = ministable.deploy("ministable", "mUSD", 18, "ministable", "1", self.oracle.address)
         self.feed_price = ETH_USD_PRICE
         self.actors = [boa.env.generate_address(f"actor{i}") for i in range(N_ACTORS)]
         for actor in self.actors:

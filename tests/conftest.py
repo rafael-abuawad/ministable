@@ -50,7 +50,7 @@ def oracle():
 @pytest.fixture(scope="module")
 def stable(oracle, admin):
     with boa.env.prank(admin):
-        return ministable.deploy("ministable", "mUSD", 18, oracle.address)
+        return ministable.deploy("ministable", "mUSD", 18, "ministable", "1", oracle.address)
 
 
 @pytest.fixture(scope="module")
