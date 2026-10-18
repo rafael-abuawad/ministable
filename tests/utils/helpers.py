@@ -8,10 +8,11 @@ from tests.utils.constants import (
 )
 
 
-def deploy_stable(oracle, timeout=ORACLE_TIMEOUT, sequencer=ZERO_ADDRESS):
-    """ministable with the test suite's token metadata."""
+def deploy_stable(oracle, timeout=ORACLE_TIMEOUT, sequencer=ZERO_ADDRESS, fee=0):
+    """ministable with the test suite's token metadata. Interest-free by default,
+    so debts stay equal to the mUSD minted."""
     return ministable.deploy(
-        "ministable", "mUSD", 18, "ministable", "1", oracle, timeout, sequencer
+        "ministable", "mUSD", 18, "ministable", "1", oracle, timeout, sequencer, fee
     )
 
 

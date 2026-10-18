@@ -19,6 +19,12 @@ contract holds the ETH, tracks positions and mints/burns mUSD.
   feed and refuses to price positions while the sequencer is down and for an
   hour after it returns. `deposit`, `burn` and debt-free `withdraw` never read
   the price, so users can always repay and exit.
+- **Stability fee:** debt grows at a fixed per-second rate (`STABILITY_FEE`,
+  set at deployment, capped at 10% a year; the deploy script uses 2%). The
+  interest is minted to the contract as the **surplus**. Anyone can buy surplus
+  mUSD with ETH at the oracle price through `buy_surplus()`, which is how the
+  extra mUSD that borrowers owe as interest reaches the market. The ETH paid
+  goes to the `reserve`.
 - **Liquidation:** any position below 150% can be fully liquidated. The
   liquidator burns the position's entire mUSD debt and receives all of its ETH.
 - **Token:** ERC-20 + EIP-2612 permit, 18 decimals.
@@ -30,8 +36,10 @@ contract holds the ETH, tracks positions and mints/burns mUSD.
 | `burn(amount)` | Burn mUSD to repay your debt |
 | `withdraw(amount)` | Withdraw ETH (ratio must stay ≥ 150%) |
 | `liquidate(user)` | Repay all of `user`'s debt, take all of their ETH (ratio < 150%) |
+| `buy_surplus()` | Buy surplus mUSD with the sent ETH at the oracle price |
 | `collat_ratio(user)` | 1e18-scaled collateral ratio (`1.5e18` = 150%) |
-| `collateral(user)` / `debt(user)` | Position state |
+| `collateral(user)` / `debt(user)` | Position state (`debt` includes interest) |
+| `surplus()` / `reserve()` | Protocol-held mUSD (unsold interest) and ETH (from surplus sales) |
 
 ## Quickstart
 

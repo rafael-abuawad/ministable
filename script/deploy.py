@@ -39,6 +39,8 @@ MAX_PRICE_FEED_DECIMALS = 18
 DEV_ORACLE_TIMEOUT = 3600
 # Mirrors `ministable.SEQUENCER_GRACE_PERIOD`.
 SEQUENCER_GRACE_PERIOD = 3600
+# 2% a year, as the 1e18-scaled per-second rate ministable expects.
+STABILITY_FEE = 2 * 10**16 // (365 * 86400)
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ANVIL_CHAIN_ID = 31337
 # Rollups whose sequencer can go down; deploying there needs an uptime feed.
@@ -154,6 +156,7 @@ def _constructor_args(
         feed.address,
         timeout,
         sequencer.address if sequencer is not None else ZERO_ADDRESS,
+        STABILITY_FEE,
     )
 
 
@@ -172,6 +175,10 @@ def _check_deployment(
         stable.SEQUENCER_UPTIME_FEED()
         == (sequencer.address if sequencer is not None else ZERO_ADDRESS),
         "SEQUENCER_UPTIME_FEED does not match the network's sequencer feed.",
+    )
+    _require(
+        stable.STABILITY_FEE() == STABILITY_FEE,
+        "STABILITY_FEE does not match the deploy script.",
     )
     _require(
         (stable.name(), stable.symbol(), stable.decimals()) == (NAME, SYMBOL, DECIMALS),
