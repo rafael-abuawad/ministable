@@ -1,7 +1,7 @@
 import boa
 
-from tests.utils.constants import ETH, MIN_COLLAT_RATIO
-from tests.utils.helpers import max_mintable, to_feed_price
+from tests.utils.constants import ETH, MAX_UINT256, MIN_COLLAT_RATIO
+from tests.utils.helpers import liquidation, max_mintable, to_feed_price
 
 
 def test_open_and_close_position(stable, borrower):
@@ -44,7 +44,8 @@ def test_rising_price_frees_collateral(stable, oracle, borrower):
 def test_liquidation_with_purchased_musd(
     stable, oracle, borrower, liquidator, recipient
 ):
-    """Liquidator buys mUSD from a third party, then liquidates the borrower."""
+    """Liquidator buys mUSD from a third party, then liquidates the borrower
+    back to 150%. The borrower keeps the rest of their ETH."""
     # ================= Setup =================
     stable.deposit(value=ETH, sender=borrower)
     stable.mint(1000 * ETH, sender=borrower)
@@ -57,12 +58,18 @@ def test_liquidation_with_purchased_musd(
 
     # ================= Execute =================
     oracle.set_answer(to_feed_price(1200))
-    stable.liquidate(borrower, sender=liquidator)
+    stable.liquidate(borrower, MAX_UINT256, sender=liquidator)
 
     # ================= Verify =================
-    # Liquidator paid 1000 mUSD and received 1 ETH ($1200).
-    assert boa.env.get_balance(liquidator) == liquidator_eth + ETH
-    assert stable.balanceOf(liquidator) == 0
+    # At $1200 (120%) the liquidator repays 750 mUSD for $825 of ETH,
+    # leaving the borrower with 250 mUSD of debt against $375 of ETH.
+    repaid, seized, _ = liquidation(ETH, 1000 * ETH, to_feed_price(1200), MAX_UINT256)
+    assert repaid == 750 * ETH
+    assert boa.env.get_balance(liquidator) == liquidator_eth + seized
+    assert stable.balanceOf(liquidator) == 250 * ETH
+    assert stable.debt(borrower) == 250 * ETH
+    assert stable.collateral(borrower) == ETH - seized
+    assert stable.collat_ratio(borrower) >= MIN_COLLAT_RATIO
 
     # The seller's position is unaffected and still healthy.
     assert stable.debt(recipient) == 1000 * ETH
@@ -70,7 +77,9 @@ def test_liquidation_with_purchased_musd(
 
     # Outstanding supply equals outstanding debt; ETH held equals collateral.
     assert stable.totalSupply() == stable.debt(borrower) + stable.debt(recipient)
-    assert boa.env.get_balance(stable.address) == stable.collateral(recipient)
+    assert boa.env.get_balance(stable.address) == (
+        stable.collateral(recipient) + stable.collateral(borrower)
+    )
 
 
 def test_partial_repay_rescues_position(stable, oracle, borrower, liquidator):
@@ -84,7 +93,7 @@ def test_partial_repay_rescues_position(stable, oracle, borrower, liquidator):
 
     assert stable.collat_ratio(borrower) >= MIN_COLLAT_RATIO
     with boa.reverts(dev="[ministable] position healthy"):
-        stable.liquidate(borrower, sender=liquidator)
+        stable.liquidate(borrower, MAX_UINT256, sender=liquidator)
 
 
 def test_topping_up_collateral_rescues_position(stable, oracle, borrower, liquidator):
@@ -96,4 +105,4 @@ def test_topping_up_collateral_rescues_position(stable, oracle, borrower, liquid
 
     assert stable.collat_ratio(borrower) == 28 * 10**17
     with boa.reverts(dev="[ministable] position healthy"):
-        stable.liquidate(borrower, sender=liquidator)
+        stable.liquidate(borrower, MAX_UINT256, sender=liquidator)

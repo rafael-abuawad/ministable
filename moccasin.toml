@@ -4,8 +4,12 @@ out = "out"
 dot_env = ".env"
 dependencies = ["snekmate"]
 
-# Chainlink ETH/USD feed (8 decimals). Live networks pin the real feed
-# address below; local networks (pyevm, anvil) deploy a mock instead.
+# Chainlink ETH/USD feed. Live networks pin the real feed address below;
+# local networks (pyevm, anvil) deploy a mock instead.
+#
+# Live networks also set `extra_data.oracle_timeout`: the feed's heartbeat
+# plus a buffer, so routine update delays don't block price reads.
+# Heartbeats: https://data.chain.link (checked 2026-10-18).
 [networks.contracts.eth_usd_price_feed]
 deployer_script = "deploy_mocks.py"
 
@@ -25,6 +29,9 @@ explorer_uri = "https://api.etherscan.io/v2/api"
 explorer_type = "etherscan"
 explorer_api_key = "${ETHERSCAN_API_KEY}"
 
+[networks.sepolia.extra_data]
+oracle_timeout = 4500  # 3600s heartbeat + 900s
+
 [networks.sepolia.contracts.eth_usd_price_feed]
 address = "0x694AA1769357215DE4FAC081bf1f309aDC325306"
 
@@ -36,13 +43,27 @@ explorer_type = "etherscan"
 explorer_api_key = "${ETHERSCAN_API_KEY}"
 prompt_live = true
 
+[networks.mainnet.extra_data]
+oracle_timeout = 4500  # 3600s heartbeat + 900s
+
 [networks.mainnet.contracts.eth_usd_price_feed]
 address = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
 
-[networks.zksync-sepolia]
-url = "https://sepolia.era.zksync.dev"
-chain_id = 300
-is_zksync = true
+[networks.arbitrum]
+url = "${ARBITRUM_RPC_URL}"
+chain_id = 42161
+explorer_uri = "https://api.etherscan.io/v2/api"
+explorer_type = "etherscan"
+explorer_api_key = "${ETHERSCAN_API_KEY}"
 prompt_live = true
 
-# You can view all configuration options at https://cyfrin.github.io/moccasin/all_moccasin_toml_parameters.html
+[networks.arbitrum.extra_data]
+oracle_timeout = 2400  # 1755s heartbeat + 645s
+
+[networks.arbitrum.contracts.eth_usd_price_feed]
+address = "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612"
+
+# Chainlink L2 sequencer uptime feed: price reads revert while the
+# sequencer is down and for an hour after it comes back.
+[networks.arbitrum.contracts.sequencer_uptime_feed]
+address = "0xFdB631F5EE196F0ed6FAa767959853A9F217697D"

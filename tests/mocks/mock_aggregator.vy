@@ -1,6 +1,9 @@
 # pragma version ~=0.4.3
 """
-@title Mock Chainlink AggregatorV3 (8 decimals)
+@title Mock Chainlink AggregatorV3
+@notice Doubles as an L2 sequencer uptime feed: an
+        answer of 0 means up, 1 means down, and
+        `started_at` is when that status began.
 """
 
 
@@ -9,19 +12,29 @@ implements: IAggregatorV3
 
 
 answer: public(int256)
+started_at: public(uint256)
 updated_at: public(uint256)
+_decimals: uint8
 
 
 @deploy
-def __init__(answer: int256):
+def __init__(answer: int256, decimals_: uint8):
     self.answer = answer
+    self.started_at = block.timestamp
     self.updated_at = block.timestamp
+    self._decimals = decimals_
 
 
 @external
 def set_answer(answer: int256):
     self.answer = answer
+    self.started_at = block.timestamp
     self.updated_at = block.timestamp
+
+
+@external
+def set_started_at(started_at: uint256):
+    self.started_at = started_at
 
 
 @external
@@ -32,10 +45,10 @@ def set_updated_at(updated_at: uint256):
 @view
 @external
 def decimals() -> uint8:
-    return 8
+    return self._decimals
 
 
 @view
 @external
 def latestRoundData() -> (uint80, int256, uint256, uint256, uint80):
-    return (1, self.answer, self.updated_at, self.updated_at, 1)
+    return (1, self.answer, self.started_at, self.updated_at, 1)
