@@ -39,10 +39,13 @@ prompt_live = true
 [networks.mainnet.contracts.eth_usd_price_feed]
 address = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
 
-[networks.zksync-sepolia]
-url = "https://sepolia.era.zksync.dev"
-chain_id = 300
-is_zksync = true
+[networks.arbitrum]
+url = "${ARBITRUM_RPC_URL}"
+chain_id = 42161
+explorer_uri = "https://api.etherscan.io/v2/api"
+explorer_type = "etherscan"
+explorer_api_key = "${ETHERSCAN_API_KEY}"
 prompt_live = true
 
-# You can view all configuration options at https://cyfrin.github.io/moccasin/all_moccasin_toml_parameters.html
+[networks.arbitrum.contracts.eth_usd_price_feed]
+address = "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612"
