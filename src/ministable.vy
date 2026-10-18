@@ -4,17 +4,16 @@
 @title ministable: stablecoin (mUSD) backed by the native coin
 @custom:contract-name ministable
 @notice The CDP engine lives in the token itself. Users lock
-        the chain's native coin (ETH on Ethereum and Arbitrum,
-        MON on Monad, S on Sonic) via `deposit` or a plain
-        transfer, and mint
-        mUSD against it at a minimum 150% collateral ratio.
-        Debt accrues a fixed stability fee, minted to the
-        protocol's surplus. Positions below 150% can be
-        liquidated back to 150%: the liquidator repays debt
-        and receives 110% of it in collateral. Debt that a
-        position's collateral cannot cover becomes bad debt, which
-        the surplus and reserve absorb. Anyone can redeem
-        mUSD for $1 of collateral from a healthy position.
+        the chain's native coin via `deposit` or a plain
+        transfer, and mint mUSD against it at a minimum 150%
+        collateral ratio. Debt accrues a fixed stability fee,
+        minted to the protocol's surplus. Positions below
+        150% can be liquidated back to 150%: the liquidator
+        repays debt and receives 110% of it in collateral.
+        Debt that a position's collateral cannot cover becomes
+        bad debt, which the surplus and reserve absorb. Anyone
+        can redeem mUSD for $1 of collateral from a healthy
+        position.
 @license GNU Affero General Public License v3.0 only
 @author rafael-abuawad
 """
@@ -504,6 +503,7 @@ def _debt(user: address) -> uint256:
 def _price() -> uint256:
     if SEQUENCER_UPTIME_FEED.address != empty(address):
         self._check_sequencer()
+
     round_id: uint80 = 0
     answer: int256 = 0
     started_at: uint256 = 0
