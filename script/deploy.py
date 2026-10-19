@@ -45,6 +45,9 @@ SEQUENCER_GRACE_PERIOD = 3600
 STABILITY_FEE = 2 * 10**16 // (365 * 86400)
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ANVIL_CHAIN_ID = 31337
+# Deploys the owner-gated mock in script/deploy_mocks.py. Not a dev network:
+# the deployment is still verified.
+MONAD_TESTNET_CHAIN_ID = 10143
 # Rollups whose sequencer can go down; deploying there needs an uptime feed.
 L2_CHAIN_IDS = {42161}
 
@@ -56,6 +59,10 @@ def _require(condition: bool, message: str):
 
 def _is_dev_network(network: Network) -> bool:
     return network.is_local_or_forked_network() or network.chain_id == ANVIL_CHAIN_ID
+
+
+def _allows_mock_feed(network: Network) -> bool:
+    return _is_dev_network(network) or network.chain_id == MONAD_TESTNET_CHAIN_ID
 
 
 # ================= Price feed =================
@@ -79,14 +86,19 @@ def _oracle_timeout(network: Network) -> int:
 
 def _get_price_feed(network: Network) -> ABIContract | VyperContract:
     # Without a pinned address moccasin falls back to the mock deployer
-    # script, which must never happen on a live network.
+    # script. That is limited to local networks and Monad testnet.
     named = network.get_named_contract(PRICE_FEED)
+    pinned = named is not None and named.address is not None
     _require(
-        _is_dev_network(network) or (named is not None and named.address is not None),
+        pinned or _allows_mock_feed(network),
         f"No `{PRICE_FEED}` address for network '{network.name}'. "
         f"Set it under [networks.{network.name}.contracts.{PRICE_FEED}] in moccasin.toml.",
     )
-    return network.manifest_named(PRICE_FEED, abi=IAggregatorV3)
+    feed = network.manifest_named(PRICE_FEED, abi=IAggregatorV3)
+    # The mock is a contract we just deployed; verify it alongside ministable.
+    if not pinned and not _is_dev_network(network):
+        _verify(network, feed)
+    return feed
 
 
 def _check_price_feed(feed: ABIContract | VyperContract, timeout: int):

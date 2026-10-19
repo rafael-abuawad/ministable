@@ -82,9 +82,22 @@ prompt_live = true
 [networks.monad.extra_data]
 oracle_timeout = 4500  # 3600s heartbeat + 900s
 
-# Chainlink MON/USD (8 decimals).
 [networks.monad.contracts.native_usd_price_feed]
 address = "0xBcD78f76005B7515837af6b50c7C52BCf73822fb"
+
+[networks.monad_testnet]
+url = "${MONAD_TESTNET_RPC_URL}"
+chain_id = 10143
+explorer_uri = "https://api.etherscan.io/v2/api"
+explorer_type = "etherscan"
+explorer_api_key = "${ETHERSCAN_API_KEY}"
+prompt_live = true
+
+[networks.monad_testnet.extra_data]
+# No Chainlink MON/USD feed on this chain. The deploy script deploys an
+# owner-gated mock that answers $2000. A year, so that answer does not go
+# stale while the deployer is the one updating it.
+oracle_timeout = 31536000
 
 [networks.sonic]
 url = "${SONIC_RPC_URL}"

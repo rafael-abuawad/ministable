@@ -73,10 +73,16 @@ The price feed is the `native_usd_price_feed` named contract in
 ETH/USD feed on Monad or Sonic would value MON or S as if it were ETH. Local
 networks (pyevm, anvil) deploy `tests/mocks/mock_aggregator.vy`; live networks
 use the Chainlink feed address pinned there and refuse to deploy a mock.
+Monad testnet is the exception: Chainlink has no MON/USD feed there, so the
+script deploys that same mock at $2000. Only the deployer can change the
+answer.
 
 ```bash
 mox run deploy --network sepolia --fork             # dry run against a Sepolia fork
 mox run deploy --network sepolia --account <name>   # live deploy + Etherscan verification
+mox run deploy --network monad_testnet --fork       # dry run; local mock feed, nothing sent
+mox run deploy --network monad_testnet --account <name>  # live deploy + Monadscan verification
+mox run verify --network monad_testnet             # re-verify the latest recorded deployment
 ```
 
 Each live network sets `oracle_timeout` under `[networks.<name>.extra_data]`,
@@ -89,6 +95,7 @@ Arbitrum without one).
 | Sepolia | 11155111 | ETH | ETH/USD `0x694AA1769357215DE4FAC081bf1f309aDC325306` | 3600s | 4500s | — |
 | Arbitrum One | 42161 | ETH | ETH/USD `0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612` | 1755s | 2400s | `0xFdB631F5EE196F0ed6FAa767959853A9F217697D` |
 | Monad | 143 | MON | MON/USD `0xBcD78f76005B7515837af6b50c7C52BCf73822fb` | 3600s | 4500s | — |
+| Monad testnet | 10143 | MON | owner-gated mock at $2000, deployed by the script | — | 365 days | — |
 | Sonic | 146 | S | S/USD `0xc76dFb89fF298145b417d221B2c747d84952e01d` | 86400s | 90000s | — |
 
 Sonic's feed updates only every 24 hours or on a 0.5% price move, so
@@ -98,9 +105,17 @@ Before deploying, the script checks that the feed is a contract, reports at most
 18 decimals and has a fresh, positive answer, and that the sequencer (if any) is
 up and past its grace period. After deploying, it reads the contract back to
 confirm its parameters. Verification needs `ETHERSCAN_API_KEY` in `.env`
-(Etherscan's v2 API covers every network above). Mainnet, Arbitrum, Monad and
-Sonic also need `MAINNET_RPC_URL`, `ARBITRUM_RPC_URL`, `MONAD_RPC_URL` and
+(Etherscan's v2 API covers every network above, including Monad testnet as
+chain id `10143`; verified source shows on
+[testnet.monadscan.com](https://testnet.monadscan.com)). Mainnet, Arbitrum,
+Monad, Monad testnet and Sonic also need `MAINNET_RPC_URL`,
+`ARBITRUM_RPC_URL`, `MONAD_RPC_URL`, `MONAD_TESTNET_RPC_URL` and
 `SONIC_RPC_URL`.
+
+Monad testnet has no Chainlink MON/USD feed, so the live deploy broadcasts
+two contracts: the mock, then ministable. Both are submitted for verification.
+The mock's initial answer is $2000 and stays valid for a year; `set_answer`
+after that is limited to the deploying account.
 
 ## Tests
 
