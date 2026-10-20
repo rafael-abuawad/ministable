@@ -1,0 +1,18 @@
+name	ministable
+mode	default
+files	["src/ministable.vy", "modules/erc20.vy"]
+compiler_context	not verified
+passes_planned	3
+mem_before	0
+mem_after	0
+mem_sha	c8d66b8
+compiler_context	pragma ~=0.4.3 in both files; local vyper 0.4.3+commit.bff19ea2; snekmate 0.1.2; nonreentrancy pragma on in src/ministable.vy, off in modules/erc20.vy; deployed bytecode version not verified
+pass_1_agents	12/12
+mem_after	8
+mem_sha	c8d66b8
+pass_2_agents	10/12
+mem_after	10
+mem_sha	c8d66b8
+pass_3_agents	12/12
+mem_after	11
+mem_sha	c8d66b8

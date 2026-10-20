@@ -74,7 +74,7 @@ def test_redeem_more_than_debt_reverts(stable, borrower_position, funded_liquida
     stable.mint(POSITION_DEBT, sender=recipient)
     stable.transfer(funded_liquidator, POSITION_DEBT, sender=recipient)
 
-    with boa.reverts(dev="[ministable] repay exceeds debt"):
+    with boa.reverts(dev="[cdp_native] repay exceeds debt"):
         stable.redeem(borrower_position, POSITION_DEBT + 1, sender=funded_liquidator)
 
 
@@ -85,19 +85,19 @@ def test_redeem_unhealthy_position_reverts(
     oracle.set_answer(to_feed_price(1400))
     assert stable.collat_ratio(borrower_position) < MIN_COLLAT_RATIO
 
-    with boa.reverts(dev="[ministable] position unhealthy"):
+    with boa.reverts(dev="[cdp_native] position unhealthy"):
         stable.redeem(borrower_position, ETH, sender=funded_liquidator)
 
 
 def test_redeem_debt_free_position_reverts(stable, borrower, funded_liquidator):
     stable.deposit(value=ETH, sender=borrower)
 
-    with boa.reverts(dev="[ministable] repay exceeds debt"):
+    with boa.reverts(dev="[cdp_native] repay exceeds debt"):
         stable.redeem(borrower, ETH, sender=funded_liquidator)
 
 
 def test_redeem_zero_reverts(stable, borrower_position, funded_liquidator):
-    with boa.reverts(dev="[ministable] zero redeem"):
+    with boa.reverts(dev="[cdp_native] zero redeem"):
         stable.redeem(borrower_position, 0, sender=funded_liquidator)
 
 
@@ -109,7 +109,7 @@ def test_redeem_without_enough_musd_reverts(stable, borrower_position, liquidato
 def test_redeem_with_stale_price_reverts(stable, borrower_position, funded_liquidator):
     boa.env.time_travel(seconds=stable.ORACLE_TIMEOUT() + 1)
 
-    with boa.reverts(dev="[ministable] stale price"):
+    with boa.reverts(dev="[cdp_native] stale price"):
         stable.redeem(borrower_position, ETH, sender=funded_liquidator)
 
 

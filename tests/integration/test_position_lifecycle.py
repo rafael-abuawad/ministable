@@ -30,7 +30,7 @@ def test_rising_price_frees_collateral(stable, oracle, borrower):
     stable.mint(max_mintable(2 * ETH, to_feed_price(2000)), sender=borrower)
 
     # At $2000 the position is maxed out, so nothing can be withdrawn.
-    with boa.reverts(dev="[ministable] undercollateralized"):
+    with boa.reverts(dev="[cdp_native] undercollateralized"):
         stable.withdraw(1, sender=borrower)
 
     # At $4000 half the collateral covers the same debt.
@@ -92,7 +92,7 @@ def test_partial_repay_rescues_position(stable, oracle, borrower, liquidator):
     stable.burn(200 * ETH, sender=borrower)  # $1400 / $800 = 175%
 
     assert stable.collat_ratio(borrower) >= MIN_COLLAT_RATIO
-    with boa.reverts(dev="[ministable] position healthy"):
+    with boa.reverts(dev="[cdp_native] position healthy"):
         stable.liquidate(borrower, MAX_UINT256, sender=liquidator)
 
 
@@ -104,5 +104,5 @@ def test_topping_up_collateral_rescues_position(stable, oracle, borrower, liquid
     stable.deposit(value=ETH, sender=borrower)  # $2800 / $1000 = 280%
 
     assert stable.collat_ratio(borrower) == 28 * 10**17
-    with boa.reverts(dev="[ministable] position healthy"):
+    with boa.reverts(dev="[cdp_native] position healthy"):
         stable.liquidate(borrower, MAX_UINT256, sender=liquidator)

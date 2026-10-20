@@ -76,7 +76,7 @@ def test_small_repay_improves_ratio(stable, oracle, borrower_position, funded_li
 def test_zero_repay_reverts(stable, oracle, borrower_position, funded_liquidator):
     oracle.set_answer(PARTIAL_PRICE)
 
-    with boa.reverts(dev="[ministable] zero repay"):
+    with boa.reverts(dev="[cdp_native] zero repay"):
         stable.liquidate(borrower_position, 0, sender=funded_liquidator)
 
 
@@ -143,7 +143,7 @@ def test_insolvent_requires_full_repay(stable, oracle, borrower_position, funded
     oracle.set_answer(INSOLVENT_PRICE)
     repaid, _, _ = liquidation(POSITION_COLLATERAL, POSITION_DEBT, INSOLVENT_PRICE, MAX_UINT256)
 
-    with boa.reverts(dev="[ministable] repay too small"):
+    with boa.reverts(dev="[cdp_native] repay too small"):
         stable.liquidate(borrower_position, repaid - 1, sender=funded_liquidator)
 
     stable.liquidate(borrower_position, repaid, sender=funded_liquidator)
@@ -230,7 +230,7 @@ def test_cover_more_than_bad_debt_reverts(stable, oracle, borrower_position, fun
     oracle.set_answer(INSOLVENT_PRICE)
     stable.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
-    with boa.reverts(dev="[ministable] cover exceeds bad debt"):
+    with boa.reverts(dev="[cdp_native] cover exceeds bad debt"):
         stable.cover_bad_debt(stable.bad_debt() + 1, sender=funded_liquidator)
 
 
@@ -238,12 +238,12 @@ def test_cover_without_reserve_reverts(stable, oracle, borrower_position, funded
     oracle.set_answer(INSOLVENT_PRICE)
     stable.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
-    with boa.reverts(dev="[ministable] not enough reserve"):
+    with boa.reverts(dev="[cdp_native] not enough reserve"):
         stable.cover_bad_debt(stable.bad_debt(), sender=funded_liquidator)
 
 
 def test_cover_zero_reverts(stable, funded_liquidator):
-    with boa.reverts(dev="[ministable] zero cover"):
+    with boa.reverts(dev="[cdp_native] zero cover"):
         stable.cover_bad_debt(0, sender=funded_liquidator)
 
 
@@ -256,7 +256,7 @@ def test_liquidate_at_exact_min_ratio_reverts(
     oracle.set_answer(LIQUIDATION_PRICE)
     assert stable.collat_ratio(borrower_position) == MIN_COLLAT_RATIO
 
-    with boa.reverts(dev="[ministable] position healthy"):
+    with boa.reverts(dev="[cdp_native] position healthy"):
         stable.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
 
@@ -272,14 +272,14 @@ def test_liquidate_just_below_min_ratio(
 
 
 def test_liquidate_healthy_reverts(stable, borrower_position, funded_liquidator):
-    with boa.reverts(dev="[ministable] position healthy"):
+    with boa.reverts(dev="[cdp_native] position healthy"):
         stable.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
 
 def test_liquidate_debt_free_position_reverts(stable, borrower, funded_liquidator):
     stable.deposit(value=ETH, sender=borrower)
 
-    with boa.reverts(dev="[ministable] position healthy"):
+    with boa.reverts(dev="[cdp_native] position healthy"):
         stable.liquidate(borrower, MAX_UINT256, sender=funded_liquidator)
 
 
@@ -298,7 +298,7 @@ def test_liquidate_twice_reverts(stable, oracle, borrower_position, funded_liqui
     oracle.set_answer(PARTIAL_PRICE)
     stable.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
-    with boa.reverts(dev="[ministable] position healthy"):
+    with boa.reverts(dev="[cdp_native] position healthy"):
         stable.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
 
@@ -308,7 +308,7 @@ def test_liquidate_with_stale_price_reverts(
     oracle.set_answer(PARTIAL_PRICE)
     boa.env.time_travel(seconds=stable.ORACLE_TIMEOUT() + 1)
 
-    with boa.reverts(dev="[ministable] stale price"):
+    with boa.reverts(dev="[cdp_native] stale price"):
         stable.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
 

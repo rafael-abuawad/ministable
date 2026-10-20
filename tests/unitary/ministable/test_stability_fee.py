@@ -42,7 +42,7 @@ def fee_position(fee_stable, borrower):
 
 
 def test_fee_above_cap_reverts(oracle):
-    with boa.reverts(dev="[ministable] stability fee too high"):
+    with boa.reverts(dev="[cdp_native] stability fee too high"):
         deploy_stable(oracle.address, fee=MAX_STABILITY_FEE + 1)
 
 
@@ -121,7 +121,7 @@ def test_partial_repay(fee_stable, oracle, fee_position):
 
 
 def test_burn_more_than_debt_reverts(fee_stable, fee_position):
-    with boa.reverts(dev="[ministable] repay exceeds debt"):
+    with boa.reverts(dev="[cdp_native] repay exceeds debt"):
         fee_stable.burn(POSITION_DEBT + 1, sender=fee_position)
 
 
@@ -144,12 +144,12 @@ def test_buy_surplus(fee_stable, oracle, fee_position, recipient):
 def test_buy_more_than_surplus_reverts(fee_stable, oracle, fee_position, recipient):
     _wait(oracle, YEAR)
 
-    with boa.reverts(dev="[ministable] not enough surplus"):
+    with boa.reverts(dev="[cdp_native] not enough surplus"):
         fee_stable.buy_surplus(value=ETH, sender=recipient)
 
 
 def test_buy_nothing_reverts(fee_stable, recipient):
-    with boa.reverts(dev="[ministable] zero purchase"):
+    with boa.reverts(dev="[cdp_native] zero purchase"):
         fee_stable.buy_surplus(value=0, sender=recipient)
 
 

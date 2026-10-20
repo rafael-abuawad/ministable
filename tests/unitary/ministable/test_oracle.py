@@ -34,7 +34,7 @@ def test_stale_price_reverts(stable, borrower):
     stable.deposit(value=ETH, sender=borrower)
     boa.env.time_travel(seconds=ORACLE_TIMEOUT + 1)
 
-    with boa.reverts(dev="[ministable] stale price"):
+    with boa.reverts(dev="[cdp_native] stale price"):
         stable.mint(1, sender=borrower)
 
 
@@ -50,7 +50,7 @@ def test_zero_price_reverts(stable, oracle, borrower):
     stable.deposit(value=ETH, sender=borrower)
     oracle.set_answer(0)
 
-    with boa.reverts(dev="[ministable] invalid price"):
+    with boa.reverts(dev="[cdp_native] invalid price"):
         stable.mint(1, sender=borrower)
 
 
@@ -58,14 +58,14 @@ def test_negative_price_reverts(stable, oracle, borrower):
     stable.deposit(value=ETH, sender=borrower)
     oracle.set_answer(-1)
 
-    with boa.reverts(dev="[ministable] invalid price"):
+    with boa.reverts(dev="[cdp_native] invalid price"):
         stable.mint(1, sender=borrower)
 
 
 def test_collat_ratio_view_reverts_on_bad_price(stable, oracle, borrower_position):
     oracle.set_answer(0)
 
-    with boa.reverts(dev="[ministable] invalid price"):
+    with boa.reverts(dev="[cdp_native] invalid price"):
         stable.collat_ratio(borrower_position)
 
 
@@ -73,7 +73,7 @@ def test_collat_ratio_view_reverts_on_bad_price(stable, oracle, borrower_positio
 
 
 def test_zero_oracle_timeout_reverts(oracle):
-    with boa.reverts(dev="[ministable] zero oracle timeout"):
+    with boa.reverts(dev="[cdp_native] zero oracle timeout"):
         deploy_stable(oracle.address, timeout=0)
 
 
@@ -85,7 +85,7 @@ def test_custom_oracle_timeout(oracle, borrower):
     stable.mint(1, sender=borrower)
 
     boa.env.time_travel(seconds=1)
-    with boa.reverts(dev="[ministable] stale price"):
+    with boa.reverts(dev="[cdp_native] stale price"):
         stable.mint(1, sender=borrower)
 
 
@@ -101,7 +101,7 @@ def test_feed_decimals_price_the_same(borrower, decimals):
     assert limit == max_mintable(POSITION_COLLATERAL, ETH_USD_PRICE)
 
     stable.deposit(value=POSITION_COLLATERAL, sender=borrower)
-    with boa.reverts(dev="[ministable] undercollateralized"):
+    with boa.reverts(dev="[cdp_native] undercollateralized"):
         stable.mint(limit + 1, sender=borrower)
     stable.mint(limit, sender=borrower)
 
@@ -111,7 +111,7 @@ def test_feed_decimals_price_the_same(borrower, decimals):
 def test_feed_with_more_than_18_decimals_reverts():
     feed = MOCK_AGGREGATOR.deploy(to_feed_price(2000, 19), 19)
 
-    with boa.reverts(dev="[ministable] unsupported oracle decimals"):
+    with boa.reverts(dev="[cdp_native] unsupported oracle decimals"):
         deploy_stable(feed.address)
 
 
@@ -146,28 +146,28 @@ def test_sequencer_up_allows_price_reads(l2_stable, borrower):
 def test_sequencer_down_reverts(l2_stable, sequencer, borrower):
     sequencer.set_answer(SEQUENCER_DOWN)
 
-    with boa.reverts(dev="[ministable] sequencer down"):
+    with boa.reverts(dev="[cdp_native] sequencer down"):
         l2_stable.mint(1, sender=borrower)
-    with boa.reverts(dev="[ministable] sequencer down"):
+    with boa.reverts(dev="[cdp_native] sequencer down"):
         l2_stable.collat_ratio(borrower)
 
 
 def test_sequencer_uninitialised_reverts(l2_stable, sequencer, borrower):
     sequencer.set_started_at(0)
 
-    with boa.reverts(dev="[ministable] sequencer down"):
+    with boa.reverts(dev="[cdp_native] sequencer down"):
         l2_stable.mint(1, sender=borrower)
 
 
 def test_sequencer_grace_period(l2_stable, sequencer, oracle, borrower):
     sequencer.set_answer(SEQUENCER_UP)  # just came back up
 
-    with boa.reverts(dev="[ministable] sequencer grace period"):
+    with boa.reverts(dev="[cdp_native] sequencer grace period"):
         l2_stable.mint(1, sender=borrower)
 
     boa.env.time_travel(seconds=SEQUENCER_GRACE_PERIOD)
     oracle.set_answer(ETH_USD_PRICE)
-    with boa.reverts(dev="[ministable] sequencer grace period"):
+    with boa.reverts(dev="[cdp_native] sequencer grace period"):
         l2_stable.mint(1, sender=borrower)
 
     boa.env.time_travel(seconds=1)

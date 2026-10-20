@@ -6,6 +6,12 @@ by DAI / Sky USD and
 Unlike MicroStable, the CDP engine lives inside the token contract: one
 contract holds the collateral, tracks positions and mints/burns mUSD.
 
+| File | Contents |
+| --- | --- |
+| `src/ministable.vy` | The deployed token: wires the modules below together and treats plain transfers as deposits |
+| `modules/erc20.vy` | ERC-20 + EIP-2612 permit |
+| `modules/cdp_native.vy` | The CDP engine backed by the native coin: collateral, debt, interest, liquidations, redemptions, surplus and the oracle |
+
 ## Mechanism
 
 - **Collateral:** the chain's native coin: ETH on Ethereum and Arbitrum, MON on
