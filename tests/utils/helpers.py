@@ -39,14 +39,21 @@ def filter_logs(contract, event_name: str, computation=None) -> list:
 
 
 def liquidation(
-    collateral: int, debt: int, feed_price: int, max_repay: int, decimals: int = ORACLE_DECIMALS
+    collateral: int,
+    debt: int,
+    feed_price: int,
+    max_repay: int,
+    decimals: int = ORACLE_DECIMALS,
+    rate_index: int = PRECISION,
 ) -> tuple[int, int, int]:
-    """(repaid, seized, written_off) for a liquidation (mirrors `liquidate`)."""
+    """(repaid, seized, written_off) for a liquidation (mirrors `liquidate`).
+    `rate_index` is the contract's index once the call has accrued."""
     price = feed_price * 10 ** (18 - decimals)
     value = collateral * price // PRECISION * PRECISION
     if value >= LIQUIDATION_PENALTY * debt:
         step = MIN_COLLAT_RATIO - LIQUIDATION_PENALTY
-        needed = MIN_COLLAT_RATIO * debt - value
+        debt_margin = rate_index // PRECISION + 1
+        needed = MIN_COLLAT_RATIO * (debt + debt_margin) - value + PRECISION
         repay = min(-(-needed // step), debt, max_repay)
         return repay, min(repay * LIQUIDATION_PENALTY // price, collateral), 0
     repay = value // LIQUIDATION_PENALTY

@@ -14,12 +14,19 @@ from tests.utils.constants import (
     PRECISION,
     YEAR,
 )
-from tests.utils.helpers import deploy_stable, filter_logs, liquidation, to_feed_price
+from tests.utils.helpers import (
+    deploy_stable,
+    filter_logs,
+    liquidation,
+    max_mintable,
+    to_feed_price,
+)
 
 # At $1400 the default position (1 ETH, 1000 mUSD) is at 140%: repaying
-# 250 mUSD for 275 $ of ETH brings it back to exactly 150%.
+# 250 mUSD for 275 $ of ETH brings it back to exactly 150%. The 10 wei
+# on top is `liquidate`'s rounding margin.
 PARTIAL_PRICE = to_feed_price(1400)
-PARTIAL_REPAY = 250 * ETH
+PARTIAL_REPAY = 250 * ETH + 10
 # At $1000 the position is at 100%: its ETH covers 1000 / 1.1 mUSD at 110%.
 INSOLVENT_PRICE = to_feed_price(1000)
 
@@ -269,6 +276,36 @@ def test_liquidate_just_below_min_ratio(
 
     assert 0 < repaid < ETH
     assert stable.collat_ratio(borrower_position) >= MIN_COLLAT_RATIO
+
+
+def test_rounding_cannot_leave_position_below_min_ratio(oracle, borrower, liquidator):
+    """Found by the stateful fuzzer: with interest accruing, the minimal
+    repay once left the position at 150% minus 1 wei once its collateral
+    value and its remaining debt shares were rounded."""
+    oracle.set_answer(ETH_USD_PRICE)
+    stable = deploy_stable(oracle.address, fee=MAX_STABILITY_FEE)
+    stable.deposit(value=10 * ETH, sender=liquidator)
+    stable.mint(POSITION_DEBT, sender=liquidator)
+
+    price = ETH_USD_PRICE * 9_999 // 10_000 * 8_865 // 10_000
+    oracle.set_answer(price)
+    collateral = 50 * ETH - 1
+    stable.deposit(value=collateral, sender=borrower)
+    # Share rounding can push the exact limit one wei over; step down.
+    amount = max_mintable(collateral, price)
+    while True:
+        try:
+            stable.mint(amount, sender=borrower)
+            break
+        except boa.BoaError:
+            amount -= 1
+
+    _wait(oracle, 1, price)
+    assert stable.collat_ratio(borrower) < MIN_COLLAT_RATIO
+
+    stable.liquidate(borrower, MAX_UINT256, sender=liquidator)
+
+    assert stable.collat_ratio(borrower) >= MIN_COLLAT_RATIO
 
 
 def test_liquidate_healthy_reverts(stable, borrower_position, funded_liquidator):

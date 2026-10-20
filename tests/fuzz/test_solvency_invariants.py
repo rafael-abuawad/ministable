@@ -340,7 +340,7 @@ class SolvencyMachine(RuleBasedStateMachine):
                 self.stable.liquidate(user, max_repay, sender=liquidator)
             return
         repaid, seized, written_off = liquidation(
-            collateral, debt, self.feed_price, max_repay
+            collateral, debt, self.feed_price, max_repay, rate_index=self._index_now()
         )
         if written_off == 0 and repaid == 0:
             with boa.reverts(dev="[cdp_native] zero repay"):

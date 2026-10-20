@@ -63,11 +63,12 @@ def test_liquidation_with_purchased_musd(
     # ================= Verify =================
     # At $1200 (120%) the liquidator repays 750 mUSD for $825 of ETH,
     # leaving the borrower with 250 mUSD of debt against $375 of ETH.
+    # The 10 wei on top is `liquidate`'s rounding margin.
     repaid, seized, _ = liquidation(ETH, 1000 * ETH, to_feed_price(1200), MAX_UINT256)
-    assert repaid == 750 * ETH
+    assert repaid == 750 * ETH + 10
     assert boa.env.get_balance(liquidator) == liquidator_eth + seized
-    assert stable.balanceOf(liquidator) == 250 * ETH
-    assert stable.debt(borrower) == 250 * ETH
+    assert stable.balanceOf(liquidator) == 1000 * ETH - repaid
+    assert stable.debt(borrower) == 1000 * ETH - repaid
     assert stable.collateral(borrower) == ETH - seized
     assert stable.collat_ratio(borrower) >= MIN_COLLAT_RATIO
 

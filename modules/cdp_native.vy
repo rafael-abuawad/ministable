@@ -279,7 +279,12 @@ def liquidate(user: address, max_repay: uint256) -> uint256:
     if value >= LIQUIDATION_PENALTY * d:
         # @dev Solve (value - 1.1x) / (d - x) = 1.5 for x,
         # rounding up so the position ends at or above 150%.
-        needed: uint256 = MIN_COLLAT_RATIO * d - value
+        # The margins cover rounding after the repay: the
+        # collateral value floors by up to 1 wei, and the debt
+        # left, whose removed shares round down, exceeds `d - x`
+        # by up to `rate_index / 1e18 + 1` wei.
+        debt_margin: uint256 = self.rate_index // PRECISION + 1
+        needed: uint256 = MIN_COLLAT_RATIO * (d + debt_margin) - value + PRECISION
         step: uint256 = MIN_COLLAT_RATIO - LIQUIDATION_PENALTY
         repay = min(min((needed + step - 1) // step, d), max_repay)
         assert repay > 0 # dev: [cdp_native] zero repay
