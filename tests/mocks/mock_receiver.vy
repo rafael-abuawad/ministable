@@ -1,9 +1,9 @@
 # pragma version ~=0.4.3
 """
-@title Mock ministable position holder
-@notice A contract that opens a ministable position. Its
+@title Mock cdp_native position holder
+@notice A contract that opens a cdp_native position. Its
         `__default__` can be toggled to reject ETH or to
-        re-enter `ministable.withdraw` when it receives ETH.
+        re-enter `withdraw` when it receives ETH.
 """
 
 

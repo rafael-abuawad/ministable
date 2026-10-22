@@ -1,5 +1,5 @@
 from src import ministable
-from tests.mocks.deployers import CDP_ERC20_HARNESS
+from tests.mocks.deployers import CDP_ERC20_HARNESS, CDP_NATIVE_HARNESS, ERC20_HARNESS
 from tests.utils.constants import (
     ETH,
     LIQUIDATION_PENALTY,
@@ -13,11 +13,24 @@ from tests.utils.constants import (
 
 
 def deploy_stable(oracle, timeout=ORACLE_TIMEOUT, sequencer=ZERO_ADDRESS, fee=0):
-    """ministable with the test suite's token metadata. Interest-free by default,
-    so debts stay equal to the mUSD minted."""
+    """The production ministable, for the factory tests. Module tests use the
+    harnesses below."""
     return ministable.deploy(
         "ministable", "mUSD", 18, "ministable", "1", oracle, timeout, sequencer, fee
     )
+
+
+def deploy_erc20(
+    name="ministable", symbol="mUSD", decimals=18, name_eip712="ministable", version_eip712="1"
+):
+    """The `erc20` test harness, with `mint`/`burn` exposed."""
+    return ERC20_HARNESS.deploy(name, symbol, decimals, name_eip712, version_eip712)
+
+
+def deploy_cdp_native(oracle, timeout=ORACLE_TIMEOUT, sequencer=ZERO_ADDRESS, fee=0):
+    """The `cdp_native` test harness. Interest-free by default, so debts stay
+    equal to the mUSD minted."""
+    return CDP_NATIVE_HARNESS.deploy(oracle, timeout, sequencer, fee)
 
 
 def deploy_cdp_erc20(collateral, oracle, timeout=ORACLE_TIMEOUT, sequencer=ZERO_ADDRESS, fee=0):

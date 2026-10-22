@@ -9,7 +9,7 @@ from tests.utils.constants import (
     POSITION_COLLATERAL,
     POSITION_DEBT,
 )
-from tests.utils.helpers import deploy_stable
+from tests.utils.helpers import deploy_cdp_native
 
 boa.env.enable_fast_mode()
 
@@ -53,15 +53,17 @@ def oracle():
     return MOCK_AGGREGATOR.deploy(ETH_USD_PRICE, ORACLE_DECIMALS)
 
 
+# `cdp` is the `cdp_native` harness by default; `tests/unitary/cdp_erc20`
+# overrides it (and the position fixtures) with the `cdp_erc20` harness.
 @pytest.fixture(scope="module")
-def stable(oracle, admin):
+def cdp(oracle, admin):
     with boa.env.prank(admin):
-        return deploy_stable(oracle.address)
+        return deploy_cdp_native(oracle.address)
 
 
 @pytest.fixture(scope="module")
-def receiver(stable):
-    contract = MOCK_RECEIVER.deploy(stable.address)
+def receiver(cdp):
+    contract = MOCK_RECEIVER.deploy(cdp.address)
     boa.env.set_balance(contract.address, ACCOUNT_BALANCE)
     return contract
 
@@ -72,16 +74,16 @@ def receiver(stable):
 
 
 @pytest.fixture
-def borrower_position(stable, borrower):
+def borrower_position(cdp, borrower):
     """1 ETH collateral, 1000 mUSD debt -> 200% at $2000."""
-    stable.deposit(value=POSITION_COLLATERAL, sender=borrower)
-    stable.mint(POSITION_DEBT, sender=borrower)
+    cdp.deposit(value=POSITION_COLLATERAL, sender=borrower)
+    cdp.mint(POSITION_DEBT, sender=borrower)
     return borrower
 
 
 @pytest.fixture
-def funded_liquidator(stable, liquidator):
+def funded_liquidator(cdp, liquidator):
     """Liquidator holding enough mUSD to repay the borrower's debt."""
-    stable.deposit(value=10 * ETH, sender=liquidator)
-    stable.mint(POSITION_DEBT, sender=liquidator)
+    cdp.deposit(value=10 * ETH, sender=liquidator)
+    cdp.mint(POSITION_DEBT, sender=liquidator)
     return liquidator

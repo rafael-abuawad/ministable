@@ -7,7 +7,7 @@ from tests.utils.helpers import deploy_cdp_erc20, fund
 
 # ================= Contracts =================
 # The default collateral is an 18-decimal token priced like ETH ($2000 on
-# the 8-decimal feed), so the `ministable` constants and helpers carry over.
+# the 8-decimal feed), so the `cdp_native` constants and helpers carry over.
 
 
 @pytest.fixture(scope="module")

@@ -22,8 +22,8 @@ def signer():
     return Account.create()
 
 
-def _sign_permit(stable, signer, spender, value, deadline, nonce=None):
-    _, name, version, chain_id, verifying_contract, _, _ = stable.eip712Domain()
+def _sign_permit(musd, signer, spender, value, deadline, nonce=None):
+    _, name, version, chain_id, verifying_contract, _, _ = musd.eip712Domain()
     domain = {
         "name": name,
         "version": version,
@@ -34,7 +34,7 @@ def _sign_permit(stable, signer, spender, value, deadline, nonce=None):
         "owner": signer.address,
         "spender": spender,
         "value": value,
-        "nonce": stable.nonces(signer.address) if nonce is None else nonce,
+        "nonce": musd.nonces(signer.address) if nonce is None else nonce,
         "deadline": deadline,
     }
     signed = Account.sign_typed_data(signer.key, domain, PERMIT_TYPES, message)
@@ -50,47 +50,47 @@ def _deadline():
     return boa.env.evm.patch.timestamp + 3600
 
 
-def test_permit_sets_allowance(stable, signer, recipient):
+def test_permit_sets_allowance(musd, signer, recipient):
     deadline = _deadline()
-    v, r, s = _sign_permit(stable, signer, recipient, 100 * ETH, deadline)
+    v, r, s = _sign_permit(musd, signer, recipient, 100 * ETH, deadline)
 
-    stable.permit(
+    musd.permit(
         signer.address, recipient, 100 * ETH, deadline, v, r, s, sender=recipient
     )
 
-    assert stable.allowance(signer.address, recipient) == 100 * ETH
-    assert stable.nonces(signer.address) == 1
+    assert musd.allowance(signer.address, recipient) == 100 * ETH
+    assert musd.nonces(signer.address) == 1
 
 
-def test_permit_replay_reverts(stable, signer, recipient):
+def test_permit_replay_reverts(musd, signer, recipient):
     deadline = _deadline()
-    v, r, s = _sign_permit(stable, signer, recipient, 100 * ETH, deadline)
-    stable.permit(signer.address, recipient, 100 * ETH, deadline, v, r, s)
+    v, r, s = _sign_permit(musd, signer, recipient, 100 * ETH, deadline)
+    musd.permit(signer.address, recipient, 100 * ETH, deadline, v, r, s)
 
     with boa.reverts(dev="[erc20] invalid signature"):
-        stable.permit(signer.address, recipient, 100 * ETH, deadline, v, r, s)
+        musd.permit(signer.address, recipient, 100 * ETH, deadline, v, r, s)
 
 
-def test_permit_wrong_value_reverts(stable, signer, recipient):
+def test_permit_wrong_value_reverts(musd, signer, recipient):
     deadline = _deadline()
-    v, r, s = _sign_permit(stable, signer, recipient, 100 * ETH, deadline)
+    v, r, s = _sign_permit(musd, signer, recipient, 100 * ETH, deadline)
 
     with boa.reverts(dev="[erc20] invalid signature"):
-        stable.permit(signer.address, recipient, 101 * ETH, deadline, v, r, s)
+        musd.permit(signer.address, recipient, 101 * ETH, deadline, v, r, s)
 
 
-def test_permit_expired_deadline_reverts(stable, signer, recipient):
+def test_permit_expired_deadline_reverts(musd, signer, recipient):
     deadline = _deadline()
-    v, r, s = _sign_permit(stable, signer, recipient, 100 * ETH, deadline)
+    v, r, s = _sign_permit(musd, signer, recipient, 100 * ETH, deadline)
     boa.env.time_travel(seconds=3601)
 
     with boa.reverts(dev="[erc20] expired deadline"):
-        stable.permit(signer.address, recipient, 100 * ETH, deadline, v, r, s)
+        musd.permit(signer.address, recipient, 100 * ETH, deadline, v, r, s)
 
 
-def test_domain_separator(stable):
+def test_domain_separator(musd):
     """Matches the EIP-712 hash built off-chain from `eip712Domain()`."""
-    _, name, version, chain_id, verifying_contract, _, _ = stable.eip712Domain()
+    _, name, version, chain_id, verifying_contract, _, _ = musd.eip712Domain()
     expected = keccak(
         encode(
             ["bytes32", "bytes32", "bytes32", "uint256", "address"],
@@ -104,4 +104,4 @@ def test_domain_separator(stable):
         )
     )
 
-    assert stable.DOMAIN_SEPARATOR() == expected
+    assert musd.DOMAIN_SEPARATOR() == expected

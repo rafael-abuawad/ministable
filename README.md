@@ -126,12 +126,18 @@ after that is limited to the deploying account.
 
 ## Tests
 
+The tests exercise the modules, not `src/ministable.vy`: each module is
+deployed inside a small harness contract in `tests/mocks/`.
+
 | Directory | Contents |
 | --- | --- |
-| `tests/unitary/ministable/` | One file per behavior: deposit, mint, burn, withdraw, liquidate, redeem, stability fee, oracle, collateral ratio, ERC-20, permit |
-| `tests/integration/` | Multi-step position lifecycles (open/close, rescue, liquidation with bought mUSD) |
-| `tests/fuzz/` | Hypothesis: exact mint/withdraw bounds, and a stateful model of interest, liquidations, bad debt, surplus and redemptions checking solvency invariants |
-| `tests/mocks/` | Mock Chainlink feed and a contract position holder (rejecting the native coin, reentrancy) |
+| `tests/unitary/cdp_native/` | One file per behavior: deposit, mint, burn, withdraw, liquidate, redeem, stability fee, oracle, collateral ratio |
+| `tests/unitary/cdp_erc20/` | The same behaviors with ERC-20 collateral, plus fee-on-transfer, no-return and `False`-returning tokens, re-entrant token callbacks, and collateral/feed decimals from 0 to 18 |
+| `tests/unitary/erc20/` | The token on its own: transfers, allowances, mint/burn, metadata, permit |
+| `tests/unitary/factory/` | The factory deploying `ministable` from its blueprint |
+| `tests/integration/` | Multi-step `cdp_native` position lifecycles (open/close, rescue, liquidation with bought mUSD) |
+| `tests/fuzz/` | Hypothesis on `cdp_native`: exact mint/withdraw bounds, and a stateful model of interest, liquidations, bad debt, surplus and redemptions checking solvency invariants |
+| `tests/mocks/` | Module harnesses (`cdp_native`, `cdp_erc20`, `erc20`), a mock Chainlink feed, mock collateral tokens, and a contract position holder (rejecting the native coin, reentrancy) |
 
 ```bash
 mox test tests/unitary   # fast unit tests only

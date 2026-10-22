@@ -12,7 +12,7 @@ feed_price_st = st.integers(min_value=10**8, max_value=10**6 * 10**8)
 
 @settings(max_examples=200, deadline=None)
 @given(collateral=collateral_st, feed_price=feed_price_st)
-def test_max_mint_is_exact_bound(stable, oracle, borrower, collateral, feed_price):
+def test_max_mint_is_exact_bound(cdp, oracle, borrower, collateral, feed_price):
     """`max_mintable` succeeds and one wei more reverts, for any collateral and price."""
     limit = max_mintable(collateral, feed_price)
     assume(limit > 0)
@@ -20,13 +20,13 @@ def test_max_mint_is_exact_bound(stable, oracle, borrower, collateral, feed_pric
     with boa.env.anchor():
         boa.env.set_balance(borrower, collateral)
         oracle.set_answer(feed_price)
-        stable.deposit(value=collateral, sender=borrower)
+        cdp.deposit(value=collateral, sender=borrower)
 
         with boa.reverts(dev="[cdp_native] undercollateralized"):
-            stable.mint(limit + 1, sender=borrower)
+            cdp.mint(limit + 1, sender=borrower)
 
-        stable.mint(limit, sender=borrower)
-        assert stable.collat_ratio(borrower) >= MIN_COLLAT_RATIO
+        cdp.mint(limit, sender=borrower)
+        assert cdp.collat_ratio(borrower) >= MIN_COLLAT_RATIO
 
 
 @settings(max_examples=200, deadline=None)
@@ -36,7 +36,7 @@ def test_max_mint_is_exact_bound(stable, oracle, borrower, collateral, feed_pric
     fraction=st.integers(min_value=0, max_value=100),
 )
 def test_max_withdraw_is_exact_bound(
-    stable, oracle, borrower, collateral, feed_price, fraction
+    cdp, oracle, borrower, collateral, feed_price, fraction
 ):
     """After minting, withdrawing past the 150% line always reverts."""
     debt = max_mintable(collateral, feed_price) * fraction // 100
@@ -45,8 +45,8 @@ def test_max_withdraw_is_exact_bound(
     with boa.env.anchor():
         boa.env.set_balance(borrower, collateral)
         oracle.set_answer(feed_price)
-        stable.deposit(value=collateral, sender=borrower)
-        stable.mint(debt, sender=borrower)
+        cdp.deposit(value=collateral, sender=borrower)
+        cdp.mint(debt, sender=borrower)
 
         # Smallest collateral that still backs `debt`.
         required = next(
@@ -57,11 +57,11 @@ def test_max_withdraw_is_exact_bound(
         free = collateral - required
 
         with boa.reverts(dev="[cdp_native] undercollateralized"):
-            stable.withdraw(free + 1, sender=borrower)
+            cdp.withdraw(free + 1, sender=borrower)
 
         if free > 0:
-            stable.withdraw(free, sender=borrower)
-        assert stable.collat_ratio(borrower) >= MIN_COLLAT_RATIO
+            cdp.withdraw(free, sender=borrower)
+        assert cdp.collat_ratio(borrower) >= MIN_COLLAT_RATIO
 
 
 def _candidates(debt: int, feed_price: int):
