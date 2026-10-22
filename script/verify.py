@@ -17,6 +17,7 @@ from script.deploy import (
     _get_sequencer_feed,
     _oracle_timeout,
     _require,
+    _stability_fee,
     _verify,
 )
 from src import ministable
@@ -34,13 +35,14 @@ def verify() -> VyperContract:
     feed = _get_price_feed(network)
     timeout = _oracle_timeout(network)
     sequencer = _get_sequencer_feed(network)
+    stability_fee = _stability_fee(network)
     # `at()` doesn't know the constructor arguments, which the explorer needs
     # to match the creation bytecode. `_check_deployment` confirms they agree
     # with the on-chain state.
     stable.ctor_calldata = stable._ctor.prepare_calldata(
-        *_constructor_args(feed, timeout, sequencer)
+        *_constructor_args(feed, timeout, sequencer, stability_fee)
     )
-    _check_deployment(stable, feed, timeout, sequencer)
+    _check_deployment(stable, feed, timeout, sequencer, stability_fee)
     print(f"Verifying ministable at {stable.address} on '{network.name}'")
 
     _verify(network, stable)

@@ -41,15 +41,26 @@ MAX_PRICE_FEED_DECIMALS = 18
 DEV_ORACLE_TIMEOUT = 3600
 # Mirrors `ministable.SEQUENCER_GRACE_PERIOD`.
 SEQUENCER_GRACE_PERIOD = 3600
+# Seconds in a 365-day year. The per-second rate is the annual rate divided by this.
+SECONDS_PER_YEAR = 365 * 86400
 # 2% a year, as the 1e18-scaled per-second rate ministable expects.
-STABILITY_FEE = 2 * 10**16 // (365 * 86400)
+STABILITY_FEE = 2 * 10**16 // SECONDS_PER_YEAR
+# 3.75% a year. `375 * 10**14` is 3.75e16, so this stays in integers.
+STABILITY_FEE_375 = 375 * 10**14 // SECONDS_PER_YEAR
+# Monad, Monad testnet and Base. Every other network uses `STABILITY_FEE`.
+STABILITY_FEE_BY_CHAIN_ID = {
+    143: STABILITY_FEE_375,
+    10143: STABILITY_FEE_375,
+    8453: STABILITY_FEE_375,
+}
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ANVIL_CHAIN_ID = 31337
 # Deploys the owner-gated mock in script/deploy_mocks.py. Not a dev network:
 # the deployment is still verified.
 MONAD_TESTNET_CHAIN_ID = 10143
 # Rollups whose sequencer can go down; deploying there needs an uptime feed.
-L2_CHAIN_IDS = {42161}
+# 42161 Arbitrum One, 8453 Base.
+L2_CHAIN_IDS = {42161, 8453}
 
 
 def _require(condition: bool, message: str):
@@ -70,6 +81,10 @@ def _allows_mock_feed(network: Network) -> bool:
 
 def _is_live_l2(network: Network) -> bool:
     return network.chain_id in L2_CHAIN_IDS
+
+
+def _stability_fee(network: Network) -> int:
+    return STABILITY_FEE_BY_CHAIN_ID.get(network.chain_id, STABILITY_FEE)
 
 
 def _oracle_timeout(network: Network) -> int:
@@ -160,6 +175,7 @@ def _constructor_args(
     feed: ABIContract | VyperContract,
     timeout: int,
     sequencer: ABIContract | None,
+    stability_fee: int,
 ) -> tuple:
     return (
         NAME,
@@ -170,7 +186,7 @@ def _constructor_args(
         feed.address,
         timeout,
         sequencer.address if sequencer is not None else ZERO_ADDRESS,
-        STABILITY_FEE,
+        stability_fee,
     )
 
 
@@ -179,6 +195,7 @@ def _check_deployment(
     feed: ABIContract | VyperContract,
     timeout: int,
     sequencer: ABIContract | None,
+    stability_fee: int,
 ):
     _require(stable.ORACLE() == feed.address, "ORACLE does not match the price feed.")
     _require(
@@ -191,7 +208,7 @@ def _check_deployment(
         "SEQUENCER_UPTIME_FEED does not match the network's sequencer feed.",
     )
     _require(
-        stable.STABILITY_FEE() == STABILITY_FEE,
+        stable.STABILITY_FEE() == stability_fee,
         "STABILITY_FEE does not match the deploy script.",
     )
     _require(
@@ -255,15 +272,17 @@ def deploy() -> VyperContract:
 
     feed = _get_price_feed(network)
     timeout = _oracle_timeout(network)
+    stability_fee = _stability_fee(network)
     _check_price_feed(feed, timeout)
     sequencer = _get_sequencer_feed(network)
     if sequencer is not None:
         _check_sequencer_feed(sequencer)
 
+    print(f"Stability fee: {stability_fee} per second")
     stable: VyperContract = ministable.deploy(
-        *_constructor_args(feed, timeout, sequencer)
+        *_constructor_args(feed, timeout, sequencer, stability_fee)
     )
-    _check_deployment(stable, feed, timeout, sequencer)
+    _check_deployment(stable, feed, timeout, sequencer, stability_fee)
     print(f"{NAME} ({SYMBOL}) deployed at {stable.address}")
 
     _verify(network, stable)

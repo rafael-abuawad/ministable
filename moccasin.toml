@@ -5,7 +5,7 @@ dot_env = ".env"
 dependencies = ["snekmate"]
 
 # Chainlink price feed for the chain's native coin in USD: the coin users
-# lock as collateral (ETH on Ethereum and Arbitrum, MON on Monad, S on
+# lock as collateral (ETH on Ethereum, Arbitrum and Base, MON on Monad, S on
 # Sonic). Never pin an ETH/USD feed on a chain whose native coin isn't ETH.
 # Live networks pin the real feed address below; local networks (pyevm,
 # anvil) deploy a mock instead.
@@ -70,6 +70,26 @@ address = "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612"
 # sequencer is down and for an hour after it comes back.
 [networks.arbitrum.contracts.sequencer_uptime_feed]
 address = "0xFdB631F5EE196F0ed6FAa767959853A9F217697D"
+
+[networks.base]
+url = "${BASE_RPC_URL}"
+chain_id = 8453
+explorer_uri = "https://api.etherscan.io/v2/api"
+explorer_type = "etherscan"
+explorer_api_key = "${ETHERSCAN_API_KEY}"
+prompt_live = true
+
+[networks.base.extra_data]
+oracle_timeout = 1800  # 1200s heartbeat + 600s
+
+# Chainlink ETH/USD (8 decimals). Deviation 0.15%.
+[networks.base.contracts.native_usd_price_feed]
+address = "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"
+
+# Chainlink L2 sequencer uptime feed: price reads revert while the
+# sequencer is down and for an hour after it comes back.
+[networks.base.contracts.sequencer_uptime_feed]
+address = "0xBCF85224fc0756B9Fa45aA7892530B47e10b6433"
 
 [networks.monad]
 url = "${MONAD_RPC_URL}"
