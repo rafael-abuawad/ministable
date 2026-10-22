@@ -48,12 +48,12 @@ def test_withdraw_down_to_limit(cdp, borrower_position):
 
 
 def test_withdraw_one_wei_past_limit_reverts(cdp, borrower_position):
-    with boa.reverts(dev="[cdp_native] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.withdraw(ETH // 4 + 1, sender=borrower_position)
 
 
 def test_withdraw_breaking_ratio_reverts(cdp, borrower_position):
-    with boa.reverts(dev="[cdp_native] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.withdraw(ETH // 2, sender=borrower_position)
 
 

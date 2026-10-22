@@ -37,7 +37,7 @@ def test_withdraw_free_collateral(cdp, borrower_position):
 
 
 def test_withdraw_past_min_ratio_reverts(cdp, borrower_position):
-    with boa.reverts(dev="[cdp_erc20] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.withdraw(FREE_COLLATERAL + 1, sender=borrower_position)
 
 
@@ -52,7 +52,7 @@ def test_withdraw_at_max_mint_reverts(cdp, funded_borrower):
     cdp.deposit(POSITION_COLLATERAL, sender=funded_borrower)
     cdp.mint(max_mintable(POSITION_COLLATERAL, ETH_USD_PRICE), sender=funded_borrower)
 
-    with boa.reverts(dev="[cdp_erc20] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.withdraw(1, sender=funded_borrower)
 
 
@@ -74,7 +74,7 @@ def test_debt_free_withdraw_ignores_price(cdp, oracle, funded_borrower):
 def test_withdraw_with_debt_needs_price(cdp, oracle, borrower_position):
     oracle.set_answer(0)
 
-    with boa.reverts(dev="[cdp_erc20] invalid price"):
+    with boa.reverts(dev="[cdp] invalid price"):
         cdp.withdraw(1, sender=borrower_position)
 
 

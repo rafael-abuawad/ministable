@@ -66,7 +66,7 @@ def test_redeem_emits_event(cdp, borrower_position, funded_liquidator):
     log = filter_logs(cdp, "Redeem")[0]
 
     assert (log.redeemer, log.user) == (funded_liquidator, borrower_position)
-    assert (log.amount, log.eth) == (400 * ETH, eth)
+    assert (log.amount, log.paid) == (400 * ETH, eth)
 
 
 def test_redeem_more_than_debt_reverts(cdp, borrower_position, funded_liquidator, recipient):
@@ -74,7 +74,7 @@ def test_redeem_more_than_debt_reverts(cdp, borrower_position, funded_liquidator
     cdp.mint(POSITION_DEBT, sender=recipient)
     cdp.transfer(funded_liquidator, POSITION_DEBT, sender=recipient)
 
-    with boa.reverts(dev="[cdp_native] repay exceeds debt"):
+    with boa.reverts(dev="[cdp] repay exceeds debt"):
         cdp.redeem(borrower_position, POSITION_DEBT + 1, sender=funded_liquidator)
 
 
@@ -85,19 +85,19 @@ def test_redeem_unhealthy_position_reverts(
     oracle.set_answer(to_feed_price(1400))
     assert cdp.collat_ratio(borrower_position) < MIN_COLLAT_RATIO
 
-    with boa.reverts(dev="[cdp_native] position unhealthy"):
+    with boa.reverts(dev="[cdp] position unhealthy"):
         cdp.redeem(borrower_position, ETH, sender=funded_liquidator)
 
 
 def test_redeem_debt_free_position_reverts(cdp, borrower, funded_liquidator):
     cdp.deposit(value=ETH, sender=borrower)
 
-    with boa.reverts(dev="[cdp_native] repay exceeds debt"):
+    with boa.reverts(dev="[cdp] repay exceeds debt"):
         cdp.redeem(borrower, ETH, sender=funded_liquidator)
 
 
 def test_redeem_zero_reverts(cdp, borrower_position, funded_liquidator):
-    with boa.reverts(dev="[cdp_native] zero redeem"):
+    with boa.reverts(dev="[cdp] zero redeem"):
         cdp.redeem(borrower_position, 0, sender=funded_liquidator)
 
 
@@ -109,7 +109,7 @@ def test_redeem_without_enough_musd_reverts(cdp, borrower_position, liquidator):
 def test_redeem_with_stale_price_reverts(cdp, borrower_position, funded_liquidator):
     boa.env.time_travel(seconds=cdp.ORACLE_TIMEOUT() + 1)
 
-    with boa.reverts(dev="[cdp_native] stale price"):
+    with boa.reverts(dev="[cdp] stale price"):
         cdp.redeem(borrower_position, ETH, sender=funded_liquidator)
 
 

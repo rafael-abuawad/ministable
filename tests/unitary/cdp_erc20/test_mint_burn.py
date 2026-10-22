@@ -56,7 +56,7 @@ def test_mint_up_to_min_ratio(cdp, funded_borrower):
 def test_mint_past_min_ratio_reverts(cdp, funded_borrower):
     cdp.deposit(POSITION_COLLATERAL, sender=funded_borrower)
 
-    with boa.reverts(dev="[cdp_erc20] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.mint(MAX_MINT + 1, sender=funded_borrower)
 
 
@@ -65,12 +65,12 @@ def test_mint_in_steps_hits_same_limit(cdp, funded_borrower):
     cdp.mint(MAX_MINT // 2, sender=funded_borrower)
     cdp.mint(MAX_MINT - MAX_MINT // 2, sender=funded_borrower)
 
-    with boa.reverts(dev="[cdp_erc20] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.mint(1, sender=funded_borrower)
 
 
 def test_mint_without_collateral_reverts(cdp, funded_borrower):
-    with boa.reverts(dev="[cdp_erc20] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.mint(1, sender=funded_borrower)
 
 
@@ -124,7 +124,7 @@ def test_burn_emits_events(cdp, borrower_position):
 def test_burn_more_than_debt_reverts(cdp, borrower_position, funded_liquidator):
     cdp.transfer(borrower_position, ETH, sender=funded_liquidator)
 
-    with boa.reverts(dev="[cdp_erc20] repay exceeds debt"):
+    with boa.reverts(dev="[cdp] repay exceeds debt"):
         cdp.burn(POSITION_DEBT + 1, sender=borrower_position)
 
 

@@ -81,19 +81,19 @@ def test_redeem_at_min_ratio(cdp, oracle, borrower_position, funded_liquidator):
 def test_redeem_unhealthy_reverts(cdp, oracle, borrower_position, funded_liquidator):
     oracle.set_answer(to_feed_price(1500) - 1)
 
-    with boa.reverts(dev="[cdp_erc20] position unhealthy"):
+    with boa.reverts(dev="[cdp] position unhealthy"):
         cdp.redeem(borrower_position, ETH, sender=funded_liquidator)
 
 
 def test_redeem_zero_reverts(cdp, borrower_position, funded_liquidator):
-    with boa.reverts(dev="[cdp_erc20] zero redeem"):
+    with boa.reverts(dev="[cdp] zero redeem"):
         cdp.redeem(borrower_position, 0, sender=funded_liquidator)
 
 
 def test_redeem_more_than_debt_reverts(cdp, borrower_position, funded_liquidator):
     cdp.transfer(funded_liquidator, POSITION_DEBT, sender=borrower_position)
 
-    with boa.reverts(dev="[cdp_erc20] repay exceeds debt"):
+    with boa.reverts(dev="[cdp] repay exceeds debt"):
         cdp.redeem(borrower_position, POSITION_DEBT + 1, sender=funded_liquidator)
 
 
@@ -101,7 +101,7 @@ def test_redeem_debt_free_position_reverts(cdp, funded_borrower, funded_liquidat
     """Debt-free positions read as healthy, but have nothing to redeem."""
     cdp.deposit(ETH, sender=funded_borrower)
 
-    with boa.reverts(dev="[cdp_erc20] repay exceeds debt"):
+    with boa.reverts(dev="[cdp] repay exceeds debt"):
         cdp.redeem(funded_borrower, ETH, sender=funded_liquidator)
 
 

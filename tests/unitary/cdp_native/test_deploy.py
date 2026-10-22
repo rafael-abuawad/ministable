@@ -8,6 +8,7 @@ from tests.utils.constants import (
     PRECISION,
     REDEMPTION_FEE,
     SEQUENCER_GRACE_PERIOD,
+    VARIANT_NATIVE,
     ZERO_ADDRESS,
 )
 
@@ -17,6 +18,7 @@ def test_parameters(cdp, oracle):
     assert cdp.ORACLE_TIMEOUT() == ORACLE_TIMEOUT
     assert cdp.SEQUENCER_UPTIME_FEED() == ZERO_ADDRESS
     assert cdp.STABILITY_FEE() == 0
+    assert cdp.VARIANT() == VARIANT_NATIVE
 
 
 def test_constants(cdp):

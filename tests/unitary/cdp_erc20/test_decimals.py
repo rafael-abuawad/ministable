@@ -81,7 +81,7 @@ def test_max_mint(market, borrower):
     assert limit == 2 * market["usd"] * ETH
     cdp.deposit(collateral, sender=borrower)
 
-    with boa.reverts(dev="[cdp_erc20] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.mint(limit + 1, sender=borrower)
     cdp.mint(limit, sender=borrower)
 

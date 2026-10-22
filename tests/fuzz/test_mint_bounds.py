@@ -22,7 +22,7 @@ def test_max_mint_is_exact_bound(cdp, oracle, borrower, collateral, feed_price):
         oracle.set_answer(feed_price)
         cdp.deposit(value=collateral, sender=borrower)
 
-        with boa.reverts(dev="[cdp_native] undercollateralized"):
+        with boa.reverts(dev="[cdp] undercollateralized"):
             cdp.mint(limit + 1, sender=borrower)
 
         cdp.mint(limit, sender=borrower)
@@ -56,7 +56,7 @@ def test_max_withdraw_is_exact_bound(
         )
         free = collateral - required
 
-        with boa.reverts(dev="[cdp_native] undercollateralized"):
+        with boa.reverts(dev="[cdp] undercollateralized"):
             cdp.withdraw(free + 1, sender=borrower)
 
         if free > 0:

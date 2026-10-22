@@ -28,7 +28,7 @@ def test_price_at_timeout_is_fresh(cdp, borrower_position):
 def test_stale_price_reverts(cdp, borrower_position):
     boa.env.time_travel(seconds=ORACLE_TIMEOUT + 1)
 
-    with boa.reverts(dev="[cdp_erc20] stale price"):
+    with boa.reverts(dev="[cdp] stale price"):
         cdp.mint(1, sender=borrower_position)
 
 
@@ -43,9 +43,9 @@ def test_refreshed_price_unblocks(cdp, oracle, borrower_position):
 def test_non_positive_price_reverts(cdp, oracle, borrower_position, answer):
     oracle.set_answer(answer)
 
-    with boa.reverts(dev="[cdp_erc20] invalid price"):
+    with boa.reverts(dev="[cdp] invalid price"):
         cdp.mint(1, sender=borrower_position)
-    with boa.reverts(dev="[cdp_erc20] invalid price"):
+    with boa.reverts(dev="[cdp] invalid price"):
         cdp.collat_ratio(borrower_position)
 
 
@@ -58,7 +58,7 @@ def test_custom_oracle_timeout(token, oracle, borrower):
     cdp.mint(1, sender=borrower)
 
     boa.env.time_travel(seconds=1)
-    with boa.reverts(dev="[cdp_erc20] stale price"):
+    with boa.reverts(dev="[cdp] stale price"):
         cdp.mint(1, sender=borrower)
 
 
@@ -99,28 +99,28 @@ def test_sequencer_feed_is_set(l2_cdp, sequencer):
 def test_sequencer_down_reverts(l2_cdp, sequencer, borrower):
     sequencer.set_answer(SEQUENCER_DOWN)
 
-    with boa.reverts(dev="[cdp_erc20] sequencer down"):
+    with boa.reverts(dev="[cdp] sequencer down"):
         l2_cdp.mint(1, sender=borrower)
-    with boa.reverts(dev="[cdp_erc20] sequencer down"):
+    with boa.reverts(dev="[cdp] sequencer down"):
         l2_cdp.collat_ratio(borrower)
 
 
 def test_sequencer_uninitialised_reverts(l2_cdp, sequencer, borrower):
     sequencer.set_started_at(0)
 
-    with boa.reverts(dev="[cdp_erc20] sequencer down"):
+    with boa.reverts(dev="[cdp] sequencer down"):
         l2_cdp.mint(1, sender=borrower)
 
 
 def test_sequencer_grace_period(l2_cdp, sequencer, oracle, borrower):
     sequencer.set_answer(SEQUENCER_UP)  # just came back up
 
-    with boa.reverts(dev="[cdp_erc20] sequencer grace period"):
+    with boa.reverts(dev="[cdp] sequencer grace period"):
         l2_cdp.mint(1, sender=borrower)
 
     boa.env.time_travel(seconds=SEQUENCER_GRACE_PERIOD)
     oracle.set_answer(ETH_USD_PRICE)
-    with boa.reverts(dev="[cdp_erc20] sequencer grace period"):
+    with boa.reverts(dev="[cdp] sequencer grace period"):
         l2_cdp.mint(1, sender=borrower)
 
     boa.env.time_travel(seconds=1)

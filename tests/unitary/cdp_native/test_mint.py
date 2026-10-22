@@ -48,7 +48,7 @@ def test_mint_up_to_limit(cdp, borrower):
 def test_mint_one_wei_above_limit_reverts(cdp, borrower):
     cdp.deposit(value=ETH, sender=borrower)
 
-    with boa.reverts(dev="[cdp_native] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.mint(MAX_MINT_PER_ETH + 1, sender=borrower)
 
 
@@ -57,12 +57,12 @@ def test_mint_in_steps_hits_same_limit(cdp, borrower):
     cdp.mint(MAX_MINT_PER_ETH // 2, sender=borrower)
     cdp.mint(MAX_MINT_PER_ETH - MAX_MINT_PER_ETH // 2, sender=borrower)
 
-    with boa.reverts(dev="[cdp_native] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.mint(1, sender=borrower)
 
 
 def test_mint_without_collateral_reverts(cdp, borrower):
-    with boa.reverts(dev="[cdp_native] undercollateralized"):
+    with boa.reverts(dev="[cdp] undercollateralized"):
         cdp.mint(1, sender=borrower)
 
 

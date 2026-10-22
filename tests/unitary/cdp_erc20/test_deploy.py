@@ -9,6 +9,7 @@ from tests.utils.constants import (
     PRECISION,
     REDEMPTION_FEE,
     SEQUENCER_GRACE_PERIOD,
+    VARIANT_ERC20,
     ZERO_ADDRESS,
 )
 from tests.utils.helpers import deploy_cdp_erc20, to_feed_price
@@ -20,6 +21,7 @@ def test_parameters(cdp, token, oracle):
     assert cdp.ORACLE_TIMEOUT() == ORACLE_TIMEOUT
     assert cdp.SEQUENCER_UPTIME_FEED() == ZERO_ADDRESS
     assert cdp.STABILITY_FEE() == 0
+    assert cdp.VARIANT() == VARIANT_ERC20
 
 
 def test_constants(cdp):
@@ -53,19 +55,19 @@ def test_max_stability_fee_accepted(token, oracle):
 
 
 def test_stability_fee_above_cap_reverts(token, oracle):
-    with boa.reverts(dev="[cdp_erc20] stability fee too high"):
+    with boa.reverts(dev="[cdp] stability fee too high"):
         deploy_cdp_erc20(token.address, oracle.address, fee=MAX_STABILITY_FEE + 1)
 
 
 def test_zero_oracle_timeout_reverts(token, oracle):
-    with boa.reverts(dev="[cdp_erc20] zero oracle timeout"):
+    with boa.reverts(dev="[cdp] zero oracle timeout"):
         deploy_cdp_erc20(token.address, oracle.address, timeout=0)
 
 
 def test_collateral_with_more_than_18_decimals_reverts(oracle):
     token = MOCK_TOKEN.deploy(19)
 
-    with boa.reverts(dev="[cdp_erc20] unsupported collateral decimals"):
+    with boa.reverts(dev="[cdp] unsupported collateral decimals"):
         deploy_cdp_erc20(token.address, oracle.address)
 
 
@@ -78,7 +80,7 @@ def test_collateral_with_18_and_0_decimals_accepted(oracle):
 def test_feed_with_more_than_18_decimals_reverts(token):
     feed = MOCK_AGGREGATOR.deploy(to_feed_price(2000, 19), 19)
 
-    with boa.reverts(dev="[cdp_erc20] unsupported oracle decimals"):
+    with boa.reverts(dev="[cdp] unsupported oracle decimals"):
         deploy_cdp_erc20(token.address, feed.address)
 
 

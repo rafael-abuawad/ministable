@@ -32,3 +32,7 @@ LIQUIDATION_PENALTY = 11 * 10**17
 
 # Share of a redemption's ETH left with the redeemed borrower (0.5%).
 REDEMPTION_FEE = 5 * 10**15
+
+# `cdp.Variant` members. A Vyper flag is a bitmask, not an enum.
+VARIANT_NATIVE = 2**0
+VARIANT_ERC20 = 2**1

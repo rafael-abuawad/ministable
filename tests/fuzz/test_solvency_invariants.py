@@ -146,7 +146,7 @@ class SolvencyMachine(RuleBasedStateMachine):
             self.shares[actor] = new_shares
             self.balance[actor] += amount
         else:
-            with boa.reverts(dev="[cdp_native] undercollateralized"):
+            with boa.reverts(dev="[cdp] undercollateralized"):
                 self.cdp.mint(amount, sender=actor)
         return healthy
 
@@ -238,13 +238,13 @@ class SolvencyMachine(RuleBasedStateMachine):
         debt, collateral = self._debt(user), self.collateral[user]
         amount = min(amount, self.balance[redeemer])
         if amount == 0:
-            with boa.reverts(dev="[cdp_native] zero redeem"):
+            with boa.reverts(dev="[cdp] zero redeem"):
                 self.cdp.redeem(user, amount, sender=redeemer)
         elif self._ratio(collateral, debt) < MIN_COLLAT_RATIO:
-            with boa.reverts(dev="[cdp_native] position unhealthy"):
+            with boa.reverts(dev="[cdp] position unhealthy"):
                 self.cdp.redeem(user, amount, sender=redeemer)
         elif amount > debt:
-            with boa.reverts(dev="[cdp_native] repay exceeds debt"):
+            with boa.reverts(dev="[cdp] repay exceeds debt"):
                 self.cdp.redeem(user, amount, sender=redeemer)
         else:
             eth = amount * (PRECISION - REDEMPTION_FEE) // (self.feed_price * 10**10)
@@ -330,23 +330,23 @@ class SolvencyMachine(RuleBasedStateMachine):
     def keeper_liquidate_healthy(self, j):
         user = self.actors[j]
         if self._ratio(self.collateral[user], self._debt(user)) >= MIN_COLLAT_RATIO:
-            with boa.reverts(dev="[cdp_native] position healthy"):
+            with boa.reverts(dev="[cdp] position healthy"):
                 self.cdp.liquidate(user, MAX_UINT256, sender=self.keeper)
 
     def _try_liquidate(self, liquidator, user, max_repay):
         debt, collateral = self._debt(user), self.collateral[user]
         if self._ratio(collateral, debt) >= MIN_COLLAT_RATIO:
-            with boa.reverts(dev="[cdp_native] position healthy"):
+            with boa.reverts(dev="[cdp] position healthy"):
                 self.cdp.liquidate(user, max_repay, sender=liquidator)
             return
         repaid, seized, written_off = liquidation(
             collateral, debt, self.feed_price, max_repay, rate_index=self._index_now()
         )
         if written_off == 0 and repaid == 0:
-            with boa.reverts(dev="[cdp_native] zero repay"):
+            with boa.reverts(dev="[cdp] zero repay"):
                 self.cdp.liquidate(user, max_repay, sender=liquidator)
         elif written_off > 0 and max_repay < repaid:
-            with boa.reverts(dev="[cdp_native] repay too small"):
+            with boa.reverts(dev="[cdp] repay too small"):
                 self.cdp.liquidate(user, max_repay, sender=liquidator)
         elif self.balance[liquidator] < repaid:
             with boa.reverts(dev="[erc20] burn amount exceeds balance"):

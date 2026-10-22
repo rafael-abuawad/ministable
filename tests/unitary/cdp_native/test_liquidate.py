@@ -83,7 +83,7 @@ def test_small_repay_improves_ratio(cdp, oracle, borrower_position, funded_liqui
 def test_zero_repay_reverts(cdp, oracle, borrower_position, funded_liquidator):
     oracle.set_answer(PARTIAL_PRICE)
 
-    with boa.reverts(dev="[cdp_native] zero repay"):
+    with boa.reverts(dev="[cdp] zero repay"):
         cdp.liquidate(borrower_position, 0, sender=funded_liquidator)
 
 
@@ -150,7 +150,7 @@ def test_insolvent_requires_full_repay(cdp, oracle, borrower_position, funded_li
     oracle.set_answer(INSOLVENT_PRICE)
     repaid, _, _ = liquidation(POSITION_COLLATERAL, POSITION_DEBT, INSOLVENT_PRICE, MAX_UINT256)
 
-    with boa.reverts(dev="[cdp_native] repay too small"):
+    with boa.reverts(dev="[cdp] repay too small"):
         cdp.liquidate(borrower_position, repaid - 1, sender=funded_liquidator)
 
     cdp.liquidate(borrower_position, repaid, sender=funded_liquidator)
@@ -227,7 +227,7 @@ def test_cover_bad_debt_from_reserve(fee_cdp, oracle, borrower, liquidator, reci
     log = filter_logs(fee_cdp, "CoverBadDebt")[0]
 
     assert eth == bad_debt * PRECISION // (INSOLVENT_PRICE * 10**10)
-    assert (log.caller, log.amount, log.eth) == (liquidator, bad_debt, eth)
+    assert (log.caller, log.amount, log.paid) == (liquidator, bad_debt, eth)
     assert fee_cdp.bad_debt() == 0
     assert fee_cdp.reserve() == reserve - eth
     assert boa.env.get_balance(liquidator) == liquidator_eth + eth
@@ -237,7 +237,7 @@ def test_cover_more_than_bad_debt_reverts(cdp, oracle, borrower_position, funded
     oracle.set_answer(INSOLVENT_PRICE)
     cdp.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
-    with boa.reverts(dev="[cdp_native] cover exceeds bad debt"):
+    with boa.reverts(dev="[cdp] cover exceeds bad debt"):
         cdp.cover_bad_debt(cdp.bad_debt() + 1, sender=funded_liquidator)
 
 
@@ -245,12 +245,12 @@ def test_cover_without_reserve_reverts(cdp, oracle, borrower_position, funded_li
     oracle.set_answer(INSOLVENT_PRICE)
     cdp.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
-    with boa.reverts(dev="[cdp_native] not enough reserve"):
+    with boa.reverts(dev="[cdp] not enough reserve"):
         cdp.cover_bad_debt(cdp.bad_debt(), sender=funded_liquidator)
 
 
 def test_cover_zero_reverts(cdp, funded_liquidator):
-    with boa.reverts(dev="[cdp_native] zero cover"):
+    with boa.reverts(dev="[cdp] zero cover"):
         cdp.cover_bad_debt(0, sender=funded_liquidator)
 
 
@@ -263,7 +263,7 @@ def test_liquidate_at_exact_min_ratio_reverts(
     oracle.set_answer(LIQUIDATION_PRICE)
     assert cdp.collat_ratio(borrower_position) == MIN_COLLAT_RATIO
 
-    with boa.reverts(dev="[cdp_native] position healthy"):
+    with boa.reverts(dev="[cdp] position healthy"):
         cdp.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
 
@@ -309,14 +309,14 @@ def test_rounding_cannot_leave_position_below_min_ratio(oracle, borrower, liquid
 
 
 def test_liquidate_healthy_reverts(cdp, borrower_position, funded_liquidator):
-    with boa.reverts(dev="[cdp_native] position healthy"):
+    with boa.reverts(dev="[cdp] position healthy"):
         cdp.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
 
 def test_liquidate_debt_free_position_reverts(cdp, borrower, funded_liquidator):
     cdp.deposit(value=ETH, sender=borrower)
 
-    with boa.reverts(dev="[cdp_native] position healthy"):
+    with boa.reverts(dev="[cdp] position healthy"):
         cdp.liquidate(borrower, MAX_UINT256, sender=funded_liquidator)
 
 
@@ -335,7 +335,7 @@ def test_liquidate_twice_reverts(cdp, oracle, borrower_position, funded_liquidat
     oracle.set_answer(PARTIAL_PRICE)
     cdp.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
-    with boa.reverts(dev="[cdp_native] position healthy"):
+    with boa.reverts(dev="[cdp] position healthy"):
         cdp.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
 
@@ -345,7 +345,7 @@ def test_liquidate_with_stale_price_reverts(
     oracle.set_answer(PARTIAL_PRICE)
     boa.env.time_travel(seconds=cdp.ORACLE_TIMEOUT() + 1)
 
-    with boa.reverts(dev="[cdp_native] stale price"):
+    with boa.reverts(dev="[cdp] stale price"):
         cdp.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
 

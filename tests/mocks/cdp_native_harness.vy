@@ -20,7 +20,7 @@ initializes: erc20[ownable := ow]
 
 
 from modules import cdp_native
-initializes: cdp_native[erc20 := erc20]
+initializes: cdp_native
 
 
 exports: (

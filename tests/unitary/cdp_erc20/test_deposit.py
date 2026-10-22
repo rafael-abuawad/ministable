@@ -47,7 +47,7 @@ def test_deposit_does_not_mint(cdp, funded_borrower):
 
 
 def test_zero_deposit_reverts(cdp, funded_borrower):
-    with boa.reverts(dev="[cdp_erc20] zero deposit"):
+    with boa.reverts(dev="[cdp] zero deposit"):
         cdp.deposit(0, sender=funded_borrower)
 
 
@@ -97,7 +97,7 @@ def test_fee_on_transfer_credits_amount_received(cdp, token, funded_borrower):
 def test_deposit_that_delivers_nothing_reverts(cdp, token, funded_borrower):
     token.set_fee_bps(10_000)
 
-    with boa.reverts(dev="[cdp_erc20] zero deposit"):
+    with boa.reverts(dev="[cdp] zero deposit"):
         cdp.deposit(ETH, sender=funded_borrower)
 
 

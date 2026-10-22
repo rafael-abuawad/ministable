@@ -143,12 +143,12 @@ def test_buy_whole_surplus(surplus_cdp, recipient):
 def test_buy_more_than_surplus_reverts(surplus_cdp, recipient):
     paid = _cost(surplus_cdp.surplus()) + 1
 
-    with boa.reverts(dev="[cdp_erc20] not enough surplus"):
+    with boa.reverts(dev="[cdp] not enough surplus"):
         surplus_cdp.buy_surplus(paid, sender=recipient)
 
 
 def test_buy_zero_reverts(surplus_cdp, recipient):
-    with boa.reverts(dev="[cdp_erc20] zero purchase"):
+    with boa.reverts(dev="[cdp] zero purchase"):
         surplus_cdp.buy_surplus(0, sender=recipient)
 
 
@@ -238,7 +238,7 @@ def test_cover_more_than_bad_debt_reverts(cdp, oracle, borrower_position, funded
     oracle.set_answer(INSOLVENT_PRICE)
     cdp.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
-    with boa.reverts(dev="[cdp_erc20] cover exceeds bad debt"):
+    with boa.reverts(dev="[cdp] cover exceeds bad debt"):
         cdp.cover_bad_debt(cdp.bad_debt() + 1, sender=funded_liquidator)
 
 
@@ -246,10 +246,10 @@ def test_cover_without_reserve_reverts(cdp, oracle, borrower_position, funded_li
     oracle.set_answer(INSOLVENT_PRICE)
     cdp.liquidate(borrower_position, MAX_UINT256, sender=funded_liquidator)
 
-    with boa.reverts(dev="[cdp_erc20] not enough reserve"):
+    with boa.reverts(dev="[cdp] not enough reserve"):
         cdp.cover_bad_debt(cdp.bad_debt(), sender=funded_liquidator)
 
 
 def test_cover_zero_reverts(cdp, funded_liquidator):
-    with boa.reverts(dev="[cdp_erc20] zero cover"):
+    with boa.reverts(dev="[cdp] zero cover"):
         cdp.cover_bad_debt(0, sender=funded_liquidator)
