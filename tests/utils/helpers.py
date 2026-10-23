@@ -101,5 +101,7 @@ def liquidation(
         needed = MIN_COLLAT_RATIO * (debt + debt_margin) - value + PRECISION
         repay = min(-(-needed // step), debt, max_repay)
         return repay, min(repay * LIQUIDATION_PENALTY // price, collateral), 0
+    if value >= debt * PRECISION:
+        return debt, collateral, 0
     repay = value // LIQUIDATION_PENALTY
     return repay, collateral, debt - repay

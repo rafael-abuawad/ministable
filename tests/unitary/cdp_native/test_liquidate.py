@@ -12,6 +12,7 @@ from tests.utils.constants import (
     POSITION_COLLATERAL,
     POSITION_DEBT,
     PRECISION,
+    SWAP_FEE,
     YEAR,
 )
 from tests.utils.helpers import (
@@ -27,8 +28,10 @@ from tests.utils.helpers import (
 # on top is `liquidate`'s rounding margin.
 PARTIAL_PRICE = to_feed_price(1400)
 PARTIAL_REPAY = 250 * ETH + 10
-# At $1000 the position is at 100%: its ETH covers 1000 / 1.1 mUSD at 110%.
-INSOLVENT_PRICE = to_feed_price(1000)
+# At $1050 the position is at 105%: its ETH covers the debt, but not 110% of it.
+COVERED_PRICE = to_feed_price(1050)
+# At $900 the position is at 90%: its ETH covers 900 / 1.1 mUSD at 110%.
+INSOLVENT_PRICE = to_feed_price(900)
 
 
 # ================= Partial liquidation =================
@@ -130,7 +133,7 @@ def test_insolvent_position_is_closed_and_written_off(
         POSITION_COLLATERAL, POSITION_DEBT, INSOLVENT_PRICE, MAX_UINT256
     )
     assert seized == POSITION_COLLATERAL
-    assert repaid == 1000 * ETH * PRECISION // LIQUIDATION_PENALTY
+    assert repaid == 900 * ETH * PRECISION // LIQUIDATION_PENALTY
 
     cdp.liquidate(borrower, MAX_UINT256, sender=liquidator)
     log = filter_logs(cdp, "Liquidate")[0]
@@ -144,6 +147,39 @@ def test_insolvent_position_is_closed_and_written_off(
     assert cdp.bad_debt() == written_off
     # Every mUSD is still owed by a position or recorded as bad debt.
     assert cdp.totalSupply() == cdp.debt(liquidator) + cdp.bad_debt()
+
+
+@pytest.mark.parametrize("usd", [1000, 1050, 1099])
+def test_covered_position_repays_whole_debt(
+    cdp, oracle, borrower_position, funded_liquidator, usd
+):
+    """Between 100% and 110% the liquidator repays all of the debt for all of
+    the ETH: the bonus shrinks to zero at 100% and nothing is written off."""
+    borrower, liquidator = borrower_position, funded_liquidator
+    liquidator_eth = boa.env.get_balance(liquidator)
+    oracle.set_answer(to_feed_price(usd))
+
+    repaid = cdp.liquidate(borrower, MAX_UINT256, sender=liquidator)
+    log = filter_logs(cdp, "Liquidate")[0]
+
+    assert repaid == POSITION_DEBT
+    assert (log.repaid, log.seized, log.written_off) == (POSITION_DEBT, POSITION_COLLATERAL, 0)
+    assert cdp.debt(borrower) == 0
+    assert cdp.collateral(borrower) == 0
+    assert cdp.bad_debt() == 0
+    assert boa.env.get_balance(liquidator) == liquidator_eth + POSITION_COLLATERAL
+    assert cdp.totalSupply() == cdp.debt(liquidator)
+
+
+def test_covered_position_requires_full_repay(
+    cdp, oracle, borrower_position, funded_liquidator
+):
+    oracle.set_answer(COVERED_PRICE)
+
+    with boa.reverts(dev="[cdp] repay too small"):
+        cdp.liquidate(borrower_position, POSITION_DEBT - 1, sender=funded_liquidator)
+
+    cdp.liquidate(borrower_position, POSITION_DEBT, sender=funded_liquidator)
 
 
 def test_insolvent_requires_full_repay(cdp, oracle, borrower_position, funded_liquidator):
@@ -226,7 +262,8 @@ def test_cover_bad_debt_from_reserve(fee_cdp, oracle, borrower, liquidator, reci
     eth = fee_cdp.cover_bad_debt(bad_debt, sender=liquidator)
     log = filter_logs(fee_cdp, "CoverBadDebt")[0]
 
-    assert eth == bad_debt * PRECISION // (INSOLVENT_PRICE * 10**10)
+    # The 0.5% swap fee stays in the reserve.
+    assert eth == bad_debt * (PRECISION - SWAP_FEE) // (INSOLVENT_PRICE * 10**10)
     assert (log.caller, log.amount, log.paid) == (liquidator, bad_debt, eth)
     assert fee_cdp.bad_debt() == 0
     assert fee_cdp.reserve() == reserve - eth

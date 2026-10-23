@@ -42,6 +42,7 @@ exports: (
     cdp.SEQUENCER_GRACE_PERIOD,
     cdp.LIQUIDATION_PENALTY,
     cdp.REDEMPTION_FEE,
+    cdp.SWAP_FEE,
     cdp.MAX_STABILITY_FEE,
     cdp.ORACLE,
     cdp.ORACLE_TIMEOUT,

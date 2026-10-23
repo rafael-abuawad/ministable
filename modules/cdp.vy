@@ -66,6 +66,12 @@ LIQUIDATION_PENALTY: public(constant(uint256)) = 11 * 10**17
 REDEMPTION_FEE: public(constant(uint256)) = 5 * 10**15
 
 
+# @dev Spread the protocol keeps when it sells surplus mUSD or pays
+# reserve collateral for bad debt, 1e18-scaled (0.5%). Without it,
+# a caller trades at a lagging oracle price and takes the lag.
+SWAP_FEE: public(constant(uint256)) = 5 * 10**15
+
+
 # @dev Largest allowed stability fee: 10% a year, as a
 # 1e18-scaled per-second rate.
 MAX_STABILITY_FEE: public(constant(uint256)) = 10**17 // (365 * 86400)
@@ -232,6 +238,9 @@ def __init__(
 ):
     assert variant_ == Variant.NATIVE or variant_ == Variant.ERC20 # dev: [cdp] invalid variant
     assert collateral_decimals <= 18 # dev: [cdp] unsupported collateral decimals
+    # @dev Coarser units floor the collateral `_liquidate` seizes
+    # to zero, so small shortfalls could never be liquidated.
+    assert collateral_decimals >= 6 # dev: [cdp] unsupported collateral decimals
     assert oracle_timeout_ > 0 # dev: [cdp] zero oracle timeout
     oracle_decimals: uint8 = staticcall oracle.decimals()
     assert oracle_decimals <= 18 # dev: [cdp] unsupported oracle decimals
@@ -316,7 +325,10 @@ def _withdraw(user: address, amount: uint256):
 #
 # If the collateral covers 110% of the debt, the liquidator
 # repays only what brings the position back to 150%, and
-# the borrower keeps the rest of their collateral. Otherwise the
+# the borrower keeps the rest of their collateral. If it covers
+# the debt but not 110% of it, the liquidator repays the whole
+# debt and takes all of the collateral, so the bonus shrinks
+# to zero at 100% and no debt is written off. Otherwise the
 # liquidator repays what the collateral covers at 110%, takes
 # all of it, and the rest of the debt becomes bad debt.
 @internal
@@ -348,7 +360,10 @@ def _liquidate(user: address, max_repay: uint256) -> (uint256, uint256):
         seized = min(repay * LIQUIDATION_PENALTY // p, c)
         self._repay(user, repay)
     else:
-        repay = value // LIQUIDATION_PENALTY
+        if value >= d * PRECISION:
+            repay = d
+        else:
+            repay = value // LIQUIDATION_PENALTY
         assert max_repay >= repay # dev: [cdp] repay too small
         seized = c
         written_off = d - repay
@@ -384,14 +399,14 @@ def _redeem(user: address, amount: uint256) -> uint256:
 
 # @dev Burns `amount` mUSD of bad debt from `msg.sender` and
 # takes its value in collateral from the reserve, at the
-# oracle price. Returns the collateral owed, which the
-# caller sends.
+# oracle price, less `SWAP_FEE`, which stays in the reserve.
+# Returns the collateral owed, which the caller sends.
 @internal
 def _cover_bad_debt(amount: uint256) -> uint256:
     self._accrue()
     assert amount > 0 # dev: [cdp] zero cover
     assert amount <= self.bad_debt # dev: [cdp] cover exceeds bad debt
-    paid: uint256 = amount * PRECISION // self._price()
+    paid: uint256 = amount * (PRECISION - SWAP_FEE) // self._price()
     assert paid <= self.reserve # dev: [cdp] not enough reserve
     self.bad_debt -= amount
     self.reserve -= paid
@@ -401,14 +416,14 @@ def _cover_bad_debt(amount: uint256) -> uint256:
 
 
 # @dev Sells surplus mUSD to `msg.sender` for `paid` base units
-# of collateral, already received, at the oracle price.
-# Interest is minted to the surplus, so this is how it
-# reaches borrowers who need it to repay. The collateral
+# of collateral, already received, at the oracle price, less
+# `SWAP_FEE`. Interest is minted to the surplus, so this is
+# how it reaches borrowers who need it to repay. The collateral
 # paid is kept in the reserve. Returns the mUSD bought.
 @internal
 def _buy_surplus(paid: uint256) -> uint256:
     self._accrue()
-    bought: uint256 = paid * self._price() // PRECISION
+    bought: uint256 = paid * self._price() // PRECISION * (PRECISION - SWAP_FEE) // PRECISION
     assert bought > 0 # dev: [cdp] zero purchase
     assert bought <= erc20.balanceOf[self] # dev: [cdp] not enough surplus
     self.reserve += paid

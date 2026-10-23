@@ -9,7 +9,7 @@
         accounting lives in the `cdp` module; this module
         pulls and sends the collateral token.
 
-        The collateral token may have up to 18 decimals and
+        The collateral token must have 6 to 18 decimals and
         may omit the `bool` return value on `transfer` and
         `transferFrom` (as USDT does). Deposits credit the
         balance the contract actually received, so tokens
@@ -62,6 +62,7 @@ exports: (
     cdp.SEQUENCER_GRACE_PERIOD,
     cdp.LIQUIDATION_PENALTY,
     cdp.REDEMPTION_FEE,
+    cdp.SWAP_FEE,
     cdp.MAX_STABILITY_FEE,
     cdp.ORACLE,
     cdp.ORACLE_TIMEOUT,

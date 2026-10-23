@@ -35,19 +35,22 @@ contract holds the collateral, tracks positions and mints/burns mUSD.
   set at deployment, capped at 10% a year). The deploy script charges 2% a year,
   and 3.75% on Monad, Monad testnet and Base. Interest is minted to the contract
   as the **surplus**. Anyone can buy surplus
-  mUSD with the native coin at the oracle price through `buy_surplus()`, which
-  is how the extra mUSD that borrowers owe as interest reaches the market. The
+  mUSD with the native coin at the oracle price, less a 0.5% fee, through
+  `buy_surplus()`, which is how the extra mUSD that borrowers owe as interest reaches the market. The
   coin paid goes to the `reserve`.
 - **Liquidation:** any position below 150% can be liquidated. The liquidator
   repays mUSD and receives 110% of it in collateral (a 10% bonus). They repay
   only what brings the position back to 150%, so the borrower keeps the rest of
   their collateral.
-- **Bad debt:** if a position's collateral is worth less than 110% of its debt,
-  the liquidator repays what the collateral covers at 110% and takes all of it;
-  the rest of the debt is written off as `bad_debt`. The surplus absorbs bad
+- **Bad debt:** if a position's collateral is worth less than 110% of its debt
+  but still covers it, the liquidator repays the whole debt and takes all of the
+  collateral, so the bonus shrinks to zero at 100% and nothing is written off.
+  Below 100%, the liquidator repays what the collateral covers at 110% and takes
+  all of it; the rest of the debt is written off as `bad_debt`. The surplus absorbs bad
   debt automatically. What it can't absorb, anyone can retire with
   `cover_bad_debt(amount)`, which burns their mUSD for native coin from the
-  reserve at the oracle price.
+  reserve at the oracle price, less a 0.5% fee. Both swap fees (`SWAP_FEE`)
+  stop callers from trading against the protocol at a lagging oracle price.
 - **Redemptions:** anyone can swap mUSD for $1 of collateral per mUSD from any
   healthy position with `redeem(user, amount)`, less a 0.5% fee that stays with
   the borrower. This puts a hard floor under the peg. The redeemer picks the
@@ -63,8 +66,8 @@ contract holds the collateral, tracks positions and mints/burns mUSD.
 | `withdraw(amount)` | Withdraw collateral (ratio must stay ≥ 150%) |
 | `liquidate(user, max_repay)` | Repay up to `max_repay` of `user`'s debt for 110% of it in collateral (ratio < 150%) |
 | `redeem(user, amount)` | Burn `amount` mUSD of `user`'s debt for $1 of their collateral each, less 0.5% (ratio ≥ 150%) |
-| `cover_bad_debt(amount)` | Burn `amount` mUSD of bad debt for its value in reserve coin |
-| `buy_surplus()` | Buy surplus mUSD with the sent native coin at the oracle price |
+| `cover_bad_debt(amount)` | Burn `amount` mUSD of bad debt for its value in reserve coin, less 0.5% |
+| `buy_surplus()` | Buy surplus mUSD with the sent native coin at the oracle price, less 0.5% |
 | `collat_ratio(user)` | 1e18-scaled collateral ratio (`1.5e18` = 150%) |
 | `collateral(user)` / `debt(user)` | Position state (`debt` includes interest) |
 | `surplus()` / `reserve()` / `bad_debt()` | Protocol-held mUSD (unsold interest), native coin (from surplus sales) and unbacked mUSD |
@@ -137,7 +140,7 @@ deployed inside a small harness contract in `tests/mocks/`.
 | Directory | Contents |
 | --- | --- |
 | `tests/unitary/cdp_native/` | One file per behavior: deposit, mint, burn, withdraw, liquidate, redeem, stability fee, oracle, collateral ratio |
-| `tests/unitary/cdp_erc20/` | The same behaviors with ERC-20 collateral, plus fee-on-transfer, no-return and `False`-returning tokens, re-entrant token callbacks, and collateral/feed decimals from 0 to 18 |
+| `tests/unitary/cdp_erc20/` | The same behaviors with ERC-20 collateral, plus fee-on-transfer, no-return and `False`-returning tokens, re-entrant token callbacks, and collateral decimals from 6 to 18 and feed decimals from 0 to 18 |
 | `tests/unitary/erc20/` | The token on its own: transfers, allowances, mint/burn, metadata, permit |
 | `tests/unitary/factory/` | The factory deploying `ministable` from its blueprint |
 | `tests/integration/` | Multi-step `cdp_native` position lifecycles (open/close, rescue, liquidation with bought mUSD) |

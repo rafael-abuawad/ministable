@@ -28,7 +28,6 @@ MARKETS = {
     "weth-18-feed": (18, 18, 2_000),
     "weth-0-feed": (18, 0, 2_000),
     "usdc-18-feed": (6, 18, 1),
-    "no-decimals": (0, 8, 2_000),
 }
 
 # Each position locks 3 whole tokens and mints one token's worth of mUSD: 300%.

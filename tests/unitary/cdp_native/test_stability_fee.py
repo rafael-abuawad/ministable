@@ -8,6 +8,7 @@ from tests.utils.constants import (
     POSITION_COLLATERAL,
     POSITION_DEBT,
     PRECISION,
+    SWAP_FEE,
     YEAR,
 )
 from tests.utils.helpers import deploy_cdp_native, filter_logs
@@ -88,25 +89,32 @@ def test_interest_lowers_collat_ratio(fee_cdp, oracle, fee_position):
     assert fee_cdp.collat_ratio(fee_position) < ratio
 
 
-def test_full_repay_with_surplus_bought(fee_cdp, oracle, fee_position):
-    """Interest is minted to the surplus, so a borrower buys it there to close out."""
+def test_full_repay_with_surplus_bought(fee_cdp, oracle, fee_position, recipient):
+    """Interest is minted to the surplus, so a borrower buys it there to close out.
+    A second borrower's interest keeps the surplus above what the first one
+    buys: purchases move in whole wei of ETH, less the swap fee, so a buyer
+    can overshoot the exact amount by a few wei."""
     borrower = fee_position
+    fee_cdp.deposit(value=POSITION_COLLATERAL, sender=recipient)
+    fee_cdp.mint(POSITION_DEBT, sender=recipient)
     _wait(oracle, YEAR)
     fee_cdp.mint(0, sender=borrower)
     debt = fee_cdp.debt(borrower)
     missing = debt - fee_cdp.balanceOf(borrower)
 
-    eth = -(-missing * PRECISION // (ETH_USD_PRICE * 10**10))
+    # The surplus is sold less the swap fee, so pay for a little more.
+    usd = -(-missing * PRECISION // (PRECISION - SWAP_FEE))
+    eth = -(-usd * PRECISION // (ETH_USD_PRICE * 10**10))
     fee_cdp.buy_surplus(value=eth, sender=borrower)
     fee_cdp.burn(debt, sender=borrower)
     fee_cdp.withdraw(POSITION_COLLATERAL, sender=borrower)
 
     assert fee_cdp.debt(borrower) == 0
     assert fee_cdp.debt_shares(borrower) == 0
-    assert fee_cdp.total_debt_shares() == 0
+    assert fee_cdp.total_debt_shares() == fee_cdp.debt_shares(recipient)
     assert fee_cdp.collateral(borrower) == 0
     assert fee_cdp.reserve() == eth
-    assert boa.env.get_balance(fee_cdp.address) == eth
+    assert boa.env.get_balance(fee_cdp.address) == eth + POSITION_COLLATERAL
 
 
 def test_partial_repay(fee_cdp, oracle, fee_position):
@@ -134,7 +142,8 @@ def test_buy_surplus(fee_cdp, oracle, fee_position, recipient):
     out = fee_cdp.buy_surplus(value=eth, sender=recipient)
     log = filter_logs(fee_cdp, "BuySurplus")[0]
 
-    assert out == 20 * ETH
+    # $20 of mUSD, less the 0.5% swap fee.
+    assert out == 20 * ETH * (PRECISION - SWAP_FEE) // PRECISION
     assert fee_cdp.balanceOf(recipient) == out
     assert fee_cdp.surplus() == surplus - out
     assert fee_cdp.reserve() == eth

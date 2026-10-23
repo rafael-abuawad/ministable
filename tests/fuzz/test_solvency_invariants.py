@@ -20,12 +20,14 @@ from tests.mocks.deployers import MOCK_AGGREGATOR
 from tests.utils.constants import (
     ETH,
     ETH_USD_PRICE,
+    LIQUIDATION_PENALTY,
     MAX_STABILITY_FEE,
     MAX_UINT256,
     MIN_COLLAT_RATIO,
     ORACLE_DECIMALS,
     PRECISION,
     REDEMPTION_FEE,
+    SWAP_FEE,
 )
 from tests.utils.helpers import deploy_cdp_native, liquidation, max_mintable
 
@@ -126,6 +128,10 @@ class SolvencyMachine(RuleBasedStateMachine):
         value = collateral * self.feed_price * 10**10 // PRECISION
         return value * PRECISION // debt
 
+    def _bought(self, eth: int) -> int:
+        """mUSD that `eth` buys from the surplus (mirrors `_buy_surplus`)."""
+        return eth * self.feed_price * 10**10 // PRECISION * (PRECISION - SWAP_FEE) // PRECISION
+
     def _underwater(self) -> list:
         return [
             a
@@ -204,9 +210,10 @@ class SolvencyMachine(RuleBasedStateMachine):
         debt = self._debt(actor)
         missing = debt - self.balance[actor]
         if missing > 0:
-            eth = _ceil_div(missing * PRECISION, self.feed_price * 10**10)
+            usd = _ceil_div(missing * PRECISION, PRECISION - SWAP_FEE)
+            eth = _ceil_div(usd * PRECISION, self.feed_price * 10**10)
             # Rounding the ETH up buys up to one price unit more than `missing`.
-            out = eth * self.feed_price * 10**10 // PRECISION
+            out = self._bought(eth)
             if out > self._surplus_now() or eth > boa.env.get_balance(actor):
                 return
             self._buy_surplus(actor, eth)
@@ -273,7 +280,7 @@ class SolvencyMachine(RuleBasedStateMachine):
         actor = self.actors[i]
         self.steps += 1
         eth = min(eth, boa.env.get_balance(actor))
-        out = eth * self.feed_price * 10**10 // PRECISION
+        out = self._bought(eth)
         if 0 < out <= self._surplus_now():
             self._buy_surplus(actor, eth)
         else:
@@ -284,15 +291,16 @@ class SolvencyMachine(RuleBasedStateMachine):
     def buy_out_surplus(self, i):
         """Buy (almost) all of the surplus, so bad debt can outlast it."""
         actor = self.actors[i]
-        eth = self._surplus_now() * PRECISION // (self.feed_price * 10**10)
-        if 0 < eth <= boa.env.get_balance(actor):
+        usd = self._surplus_now() * PRECISION // (PRECISION - SWAP_FEE)
+        eth = usd * PRECISION // (self.feed_price * 10**10)
+        if 0 < self._bought(eth) and eth <= boa.env.get_balance(actor):
             self.steps += 1
             self._buy_surplus(actor, eth)
 
     def _buy_surplus(self, actor, eth):
         out = self.cdp.buy_surplus(value=eth, sender=actor)
         self._accrue()
-        assert out == eth * self.feed_price * 10**10 // PRECISION
+        assert out == self._bought(eth)
         self.surplus -= out
         self.reserve += eth
         self.balance[actor] += out
@@ -345,7 +353,7 @@ class SolvencyMachine(RuleBasedStateMachine):
         if written_off == 0 and repaid == 0:
             with boa.reverts(dev="[cdp] zero repay"):
                 self.cdp.liquidate(user, max_repay, sender=liquidator)
-        elif written_off > 0 and max_repay < repaid:
+        elif self._closes_position(collateral, debt) and max_repay < repaid:
             with boa.reverts(dev="[cdp] repay too small"):
                 self.cdp.liquidate(user, max_repay, sender=liquidator)
         elif self.balance[liquidator] < repaid:
@@ -353,6 +361,12 @@ class SolvencyMachine(RuleBasedStateMachine):
                 self.cdp.liquidate(user, max_repay, sender=liquidator)
         else:
             self._liquidate(liquidator, user, max_repay, repaid, seized, written_off)
+
+    def _closes_position(self, collateral: int, debt: int) -> bool:
+        """True when the collateral covers less than 110% of the debt, so the
+        liquidation must repay a fixed amount and take all of it."""
+        value = collateral * self.feed_price * 10**10 // PRECISION * PRECISION
+        return value < LIQUIDATION_PENALTY * debt
 
     def _liquidate(self, liquidator, user, max_repay, repaid, seized, written_off):
         self.steps += 1
@@ -382,7 +396,7 @@ class SolvencyMachine(RuleBasedStateMachine):
         self.steps += 1
         bad_debt = self._after_accrual()[1]
         amount = min(amount, bad_debt, self.balance[actor])
-        eth = amount * PRECISION // (self.feed_price * 10**10)
+        eth = amount * (PRECISION - SWAP_FEE) // (self.feed_price * 10**10)
         if amount == 0 or eth > self.reserve:
             with boa.reverts():
                 self.cdp.cover_bad_debt(amount, sender=actor)

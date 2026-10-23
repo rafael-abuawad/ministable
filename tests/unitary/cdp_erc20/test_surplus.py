@@ -9,6 +9,7 @@ from tests.utils.constants import (
     POSITION_COLLATERAL,
     POSITION_DEBT,
     PRECISION,
+    SWAP_FEE,
     YEAR,
 )
 from tests.utils.helpers import (
@@ -20,7 +21,8 @@ from tests.utils.helpers import (
     to_feed_price,
 )
 
-INSOLVENT_PRICE = to_feed_price(1000)
+# At $900 the default position (1 token, 1000 mUSD) is at 90%.
+INSOLVENT_PRICE = to_feed_price(900)
 
 
 def _index_after(seconds: int) -> int:
@@ -34,8 +36,14 @@ def _wait(oracle, seconds: int, price: int = ETH_USD_PRICE):
 
 
 def _cost(amount: int, feed_price: int = ETH_USD_PRICE) -> int:
-    """Collateral that buys `amount` mUSD of surplus at `feed_price`, rounded down."""
-    return amount * PRECISION // price_scaled(feed_price)
+    """Collateral that buys `amount` mUSD of surplus at `feed_price`, after
+    the swap fee, rounded down."""
+    return amount * PRECISION // (PRECISION - SWAP_FEE) * PRECISION // price_scaled(feed_price)
+
+
+def _bought(paid: int, feed_price: int = ETH_USD_PRICE) -> int:
+    """mUSD that `paid` collateral buys from the surplus (mirrors `_buy_surplus`)."""
+    return paid * price_scaled(feed_price) // PRECISION * (PRECISION - SWAP_FEE) // PRECISION
 
 
 @pytest.fixture
@@ -124,7 +132,7 @@ def test_buy_surplus(surplus_cdp, token, recipient):
     bought = cdp.buy_surplus(paid, sender=buyer)
     log = filter_logs(cdp, "BuySurplus")[0]
 
-    assert bought == paid * price_scaled(ETH_USD_PRICE) // PRECISION
+    assert bought == _bought(paid)
     assert (log.buyer, log.paid, log.amount) == (buyer, paid, bought)
     assert cdp.reserve() == paid
     assert cdp.surplus() == surplus - bought
@@ -137,11 +145,13 @@ def test_buy_whole_surplus(surplus_cdp, recipient):
 
     surplus_cdp.buy_surplus(paid, sender=recipient)
 
-    assert surplus_cdp.surplus() < price_scaled(ETH_USD_PRICE) // PRECISION
+    # Purchases move in whole base units, so less than one unit's worth is left.
+    assert surplus_cdp.surplus() < price_scaled(ETH_USD_PRICE) // PRECISION + 2
 
 
 def test_buy_more_than_surplus_reverts(surplus_cdp, recipient):
-    paid = _cost(surplus_cdp.surplus()) + 1
+    # $2 more than the whole surplus.
+    paid = _cost(surplus_cdp.surplus()) + ETH // 1000
 
     with boa.reverts(dev="[cdp] not enough surplus"):
         surplus_cdp.buy_surplus(paid, sender=recipient)
@@ -156,12 +166,12 @@ def test_buy_with_fee_on_transfer_pays_for_received(surplus_cdp, token, recipien
     """A 1% transfer fee: the mUSD bought is priced on what arrives."""
     token.set_fee_bps(100)
     sent = _cost(500 * ETH)
-    received = sent * 99 // 100
+    received = sent - sent // 100  # the token rounds its fee down
 
     bought = surplus_cdp.buy_surplus(sent, sender=recipient)
 
     assert surplus_cdp.reserve() == received
-    assert bought == received * price_scaled(ETH_USD_PRICE) // PRECISION
+    assert bought == _bought(received)
 
 
 def test_buy_when_transfer_fails_reverts(surplus_cdp, token, recipient):
@@ -227,7 +237,8 @@ def test_cover_bad_debt_from_reserve(surplus_cdp, token, oracle, borrower, liqui
     paid = surplus_cdp.cover_bad_debt(bad_debt, sender=liquidator)
     log = filter_logs(surplus_cdp, "CoverBadDebt")[0]
 
-    assert paid == bad_debt * PRECISION // price_scaled(INSOLVENT_PRICE)
+    # The 0.5% swap fee stays in the reserve.
+    assert paid == bad_debt * (PRECISION - SWAP_FEE) // price_scaled(INSOLVENT_PRICE)
     assert (log.caller, log.amount, log.paid) == (liquidator, bad_debt, paid)
     assert surplus_cdp.bad_debt() == 0
     assert surplus_cdp.reserve() == reserve - paid

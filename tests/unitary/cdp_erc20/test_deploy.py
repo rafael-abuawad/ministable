@@ -1,4 +1,5 @@
 import boa
+import pytest
 
 from tests.mocks.deployers import MOCK_AGGREGATOR, MOCK_TOKEN
 from tests.utils.constants import (
@@ -8,6 +9,7 @@ from tests.utils.constants import (
     ORACLE_TIMEOUT,
     PRECISION,
     REDEMPTION_FEE,
+    SWAP_FEE,
     SEQUENCER_GRACE_PERIOD,
     VARIANT_ERC20,
     ZERO_ADDRESS,
@@ -29,6 +31,7 @@ def test_constants(cdp):
     assert cdp.SEQUENCER_GRACE_PERIOD() == SEQUENCER_GRACE_PERIOD
     assert cdp.LIQUIDATION_PENALTY() == LIQUIDATION_PENALTY
     assert cdp.REDEMPTION_FEE() == REDEMPTION_FEE
+    assert cdp.SWAP_FEE() == SWAP_FEE
     assert cdp.MAX_STABILITY_FEE() == MAX_STABILITY_FEE
 
 
@@ -71,8 +74,17 @@ def test_collateral_with_more_than_18_decimals_reverts(oracle):
         deploy_cdp_erc20(token.address, oracle.address)
 
 
-def test_collateral_with_18_and_0_decimals_accepted(oracle):
-    for decimals in (0, 18):
+@pytest.mark.parametrize("decimals", [0, 2, 5])
+def test_collateral_with_fewer_than_6_decimals_reverts(oracle, decimals):
+    """Coarser units would floor the collateral a liquidation seizes to zero."""
+    token = MOCK_TOKEN.deploy(decimals)
+
+    with boa.reverts(dev="[cdp] unsupported collateral decimals"):
+        deploy_cdp_erc20(token.address, oracle.address)
+
+
+def test_collateral_with_6_and_18_decimals_accepted(oracle):
+    for decimals in (6, 18):
         token = MOCK_TOKEN.deploy(decimals)
         deploy_cdp_erc20(token.address, oracle.address)
 

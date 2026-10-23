@@ -1,4 +1,5 @@
 import boa
+import pytest
 
 from tests.utils.constants import (
     ETH,
@@ -17,8 +18,8 @@ from tests.utils.helpers import filter_logs, held_collateral, liquidation, to_fe
 # on top is `liquidate`'s rounding margin.
 PARTIAL_PRICE = to_feed_price(1400)
 PARTIAL_REPAY = 250 * ETH + 10
-# At $1000 the position is at 100%: its collateral covers 1000 / 1.1 mUSD at 110%.
-INSOLVENT_PRICE = to_feed_price(1000)
+# At $900 the position is at 90%: its collateral covers 900 / 1.1 mUSD at 110%.
+INSOLVENT_PRICE = to_feed_price(900)
 
 
 # ================= Partial liquidation =================
@@ -125,7 +126,7 @@ def test_insolvent_position_is_closed_and_written_off(
         POSITION_COLLATERAL, POSITION_DEBT, INSOLVENT_PRICE, MAX_UINT256
     )
     assert seized == POSITION_COLLATERAL
-    assert repaid == 1000 * ETH * PRECISION // LIQUIDATION_PENALTY
+    assert repaid == 900 * ETH * PRECISION // LIQUIDATION_PENALTY
 
     cdp.liquidate(borrower, MAX_UINT256, sender=liquidator)
     log = filter_logs(cdp, "Liquidate")[0]
@@ -139,6 +140,28 @@ def test_insolvent_position_is_closed_and_written_off(
     assert cdp.bad_debt() == written_off
     assert cdp.totalSupply() == cdp.debt(liquidator) + cdp.bad_debt()
     assert cdp.total_debt_shares() == cdp.debt_shares(liquidator)
+
+
+@pytest.mark.parametrize("usd", [1000, 1050, 1099])
+def test_covered_position_repays_whole_debt(
+    cdp, token, oracle, borrower_position, funded_liquidator, usd
+):
+    """Between 100% and 110% the liquidator repays all of the debt for all of
+    the collateral: the bonus shrinks to zero at 100% and nothing is written off."""
+    borrower, liquidator = borrower_position, funded_liquidator
+    liquidator_tokens = token.balanceOf(liquidator)
+    oracle.set_answer(to_feed_price(usd))
+
+    repaid = cdp.liquidate(borrower, MAX_UINT256, sender=liquidator)
+    log = filter_logs(cdp, "Liquidate")[0]
+
+    assert repaid == POSITION_DEBT
+    assert (log.repaid, log.seized, log.written_off) == (POSITION_DEBT, POSITION_COLLATERAL, 0)
+    assert cdp.debt(borrower) == 0
+    assert cdp.collateral(borrower) == 0
+    assert cdp.bad_debt() == 0
+    assert token.balanceOf(liquidator) == liquidator_tokens + POSITION_COLLATERAL
+    assert cdp.totalSupply() == cdp.debt(liquidator)
 
 
 def test_insolvent_requires_full_repay(cdp, oracle, borrower_position, funded_liquidator):

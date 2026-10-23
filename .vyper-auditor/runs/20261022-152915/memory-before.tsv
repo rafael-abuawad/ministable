@@ -1,0 +1,12 @@
+#vyper-auditor-memory v1	key	status	scans	sha	title	kind
+src-ministable-vy|liquidate|unliquidatable-bad-debt	NEW	1	c8d66b8	No liquidator closes a position whose collateral is worth less than its debt	FINDING
+src-ministable-vy|-price|hardcoded-oracle-decimals	NEW	1	c8d66b8	The price scaling assumes an 8-decimal feed	LEAD
+src-ministable-vy|-init-|unguarded-oracle-binding	NEW	1	c8d66b8	The only deploy script binds the immutable oracle to a mock that any caller can 	LEAD
+src-ministable-vy|-price|oracle-timeout-equals-heartbeat	NEW	1	c8d66b8	The oracle timeout equals the feed heartbeat and has no margin	LEAD
+src-ministable-vy|-price|missing-sequencer-uptime-check	NEW	1	c8d66b8	The price read has no L2 sequencer uptime check	LEAD
+src-ministable-vy|-price|chainlink-min-answer-clamp	NEW	1	c8d66b8	The price read does not reject answers at the aggregator min/max bounds	LEAD
+src-ministable-vy|liquidate|all-or-nothing-liquidation	NEW	1	c8d66b8	Liquidation needs the caller to hold the whole debt in one balance	LEAD
+src-ministable-vy|liquidate|full-collateral-seizure	NEW	1	c8d66b8	A borrower at the mint limit loses all surplus ETH after a 1e-8 USD price tick	LEAD
+src-ministable-vy|-price|immutable-oracle-no-fallback	NEW	1	c8d66b8	A retired or paused feed blocks liquidation permanently	LEAD
+src-ministable-vy|mint|no-minimum-debt	NEW	1	c8d66b8	Borrowers can open positions too small to liquidate at a profit	LEAD
+src-ministable-vy|withdraw|oracle-dependent-withdraw-lock	NEW	1	c8d66b8	An oracle outage locks surplus ETH for every borrower with debt	LEAD

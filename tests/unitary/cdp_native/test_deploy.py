@@ -7,6 +7,7 @@ from tests.utils.constants import (
     ORACLE_TIMEOUT,
     PRECISION,
     REDEMPTION_FEE,
+    SWAP_FEE,
     SEQUENCER_GRACE_PERIOD,
     VARIANT_NATIVE,
     ZERO_ADDRESS,
@@ -26,6 +27,7 @@ def test_constants(cdp):
     assert cdp.SEQUENCER_GRACE_PERIOD() == SEQUENCER_GRACE_PERIOD
     assert cdp.LIQUIDATION_PENALTY() == LIQUIDATION_PENALTY
     assert cdp.REDEMPTION_FEE() == REDEMPTION_FEE
+    assert cdp.SWAP_FEE() == SWAP_FEE
     assert cdp.MAX_STABILITY_FEE() == MAX_STABILITY_FEE
 
 
