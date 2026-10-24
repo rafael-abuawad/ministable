@@ -10,7 +10,6 @@ from tests.utils.constants import (
     MAX_UINT256,
     MIN_COLLAT_RATIO,
     PRECISION,
-    REDEMPTION_FEE,
 )
 from tests.utils.helpers import (
     deploy_cdp_erc20,
@@ -18,6 +17,7 @@ from tests.utils.helpers import (
     liquidation,
     max_mintable,
     price_scaled,
+    redemption_fee,
     to_feed_price,
 )
 
@@ -136,12 +136,13 @@ def test_redeem(market, position, liquidator):
     cdp, token = market["cdp"], market["token"]
     amount = market["usd"] * ETH
     price = price_scaled(market["feed"].answer(), market["feed_decimals"], market["token_decimals"])
-    expected = amount * (PRECISION - REDEMPTION_FEE) // price
+    # The position is at 300%: a 2% fee.
+    expected = amount * (PRECISION - redemption_fee(TOKENS * PRECISION)) // price
 
     paid = cdp.redeem(position, amount, sender=liquidator)
 
     assert paid == expected
-    assert market["unit"] * 995 // 1000 - 1 <= paid <= market["unit"]
+    assert market["unit"] * 98 // 100 - 1 <= paid <= market["unit"]
 
 
 def test_round_trip(market, position):

@@ -62,8 +62,21 @@ LIQUIDATION_PENALTY: public(constant(uint256)) = 11 * 10**17
 
 
 # @dev Share of a redemption's collateral left with the borrower
-# whose position is redeemed, 1e18-scaled (0.5%).
+# whose position is redeemed, at a 150% ratio, 1e18-scaled (0.5%).
+# The fee rises with the ratio, so redeemers reach for the riskiest
+# positions first and safer borrowers are paid more when redeemed.
 REDEMPTION_FEE: public(constant(uint256)) = 5 * 10**15
+
+
+# @dev Extra redemption fee per 100% of collateral ratio above
+# `MIN_COLLAT_RATIO`, 1e18-scaled (1%).
+REDEMPTION_FEE_SLOPE: public(constant(uint256)) = 10**16
+
+
+# @dev Cap on the redemption fee, reached at a 600% ratio,
+# 1e18-scaled (5%). It keeps every healthy position redeemable,
+# so the peg floor never drops below $0.95.
+MAX_REDEMPTION_FEE: public(constant(uint256)) = 5 * 10**16
 
 
 # @dev Spread the protocol keeps when it sells surplus mUSD or pays
@@ -380,16 +393,20 @@ def _liquidate(user: address, max_repay: uint256) -> (uint256, uint256):
 
 # @dev Swaps `amount` of `msg.sender`'s mUSD for $1 of collateral
 # per mUSD from `user`'s position, at the oracle price,
-# less `REDEMPTION_FEE`, which stays with the borrower.
-# This puts a hard floor under the peg. Only healthy
-# positions can be redeemed; the redeemer picks which.
-# Returns the collateral owed, which the caller sends.
+# less the redemption fee, which stays with the borrower.
+# This puts a floor under the peg. Only healthy positions
+# can be redeemed; the redeemer picks which, and pays
+# more for safer ones. Reverts if the collateral owed is
+# below `min_paid`. Returns the collateral owed, which the
+# caller sends.
 @internal
-def _redeem(user: address, amount: uint256) -> uint256:
+def _redeem(user: address, amount: uint256, min_paid: uint256) -> uint256:
     self._accrue()
     assert amount > 0 # dev: [cdp] zero redeem
-    assert self._collat_ratio(user) >= MIN_COLLAT_RATIO # dev: [cdp] position unhealthy
-    paid: uint256 = amount * (PRECISION - REDEMPTION_FEE) // self._price()
+    ratio: uint256 = self._collat_ratio(user)
+    assert ratio >= MIN_COLLAT_RATIO # dev: [cdp] position unhealthy
+    paid: uint256 = amount * (PRECISION - self._redemption_fee(ratio)) // self._price()
+    assert paid >= min_paid # dev: [cdp] slippage
     self._repay(user, amount)
     self.collateral[user] -= paid
     erc20._burn(msg.sender, amount)
@@ -546,3 +563,18 @@ def _collat_ratio(user: address) -> uint256:
         return max_value(uint256)
     value: uint256 = self.collateral[user] * self._price() // PRECISION
     return value * PRECISION // d
+
+
+# @dev The 1e18-scaled redemption fee for a position at
+# `ratio`: `REDEMPTION_FEE` at 150%, plus `REDEMPTION_FEE_SLOPE`
+# per 100% above it, up to `MAX_REDEMPTION_FEE`. The excess
+# is capped before it is scaled, so a debt-free position's
+# `max_value(uint256)` ratio cannot overflow.
+@pure
+@internal
+def _redemption_fee(ratio: uint256) -> uint256:
+    excess: uint256 = min(
+        ratio - MIN_COLLAT_RATIO,
+        (MAX_REDEMPTION_FEE - REDEMPTION_FEE) * PRECISION // REDEMPTION_FEE_SLOPE,
+    )
+    return REDEMPTION_FEE + excess * REDEMPTION_FEE_SLOPE // PRECISION

@@ -26,10 +26,9 @@ from tests.utils.constants import (
     MIN_COLLAT_RATIO,
     ORACLE_DECIMALS,
     PRECISION,
-    REDEMPTION_FEE,
     SWAP_FEE,
 )
-from tests.utils.helpers import deploy_cdp_native, liquidation, max_mintable
+from tests.utils.helpers import deploy_cdp_native, liquidation, max_mintable, redemption_fee
 
 N_ACTORS = 4
 STARTING_ETH = 1_000 * ETH
@@ -254,8 +253,8 @@ class SolvencyMachine(RuleBasedStateMachine):
             with boa.reverts(dev="[cdp] repay exceeds debt"):
                 self.cdp.redeem(user, amount, sender=redeemer)
         else:
-            eth = amount * (PRECISION - REDEMPTION_FEE) // (self.feed_price * 10**10)
             ratio = self._ratio(collateral, debt)
+            eth = amount * (PRECISION - redemption_fee(ratio)) // (self.feed_price * 10**10)
             redeemer_eth = boa.env.get_balance(redeemer)
             assert self.cdp.redeem(user, amount, sender=redeemer) == eth
             self._accrue()

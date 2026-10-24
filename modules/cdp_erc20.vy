@@ -130,11 +130,11 @@ def liquidate(user: address, max_repay: uint256) -> uint256:
 
 # @dev Swaps `amount` of the caller's mUSD for $1 of collateral
 # per mUSD from `user`'s healthy position, less the redemption
-# fee. See `cdp._redeem`. Returns the collateral paid, in base
-# units.
+# fee. Reverts if that pays less than `min_paid`. See
+# `cdp._redeem`. Returns the collateral paid, in base units.
 @external
-def redeem(user: address, amount: uint256) -> uint256:
-    paid: uint256 = cdp._redeem(user, amount)
+def redeem(user: address, amount: uint256, min_paid: uint256 = 0) -> uint256:
+    paid: uint256 = cdp._redeem(user, amount, min_paid)
     self._push(msg.sender, paid)
     return paid
 

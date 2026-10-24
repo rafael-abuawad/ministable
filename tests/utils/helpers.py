@@ -7,7 +7,10 @@ from tests.utils.constants import (
     MIN_COLLAT_RATIO,
     ORACLE_DECIMALS,
     ORACLE_TIMEOUT,
+    MAX_REDEMPTION_FEE,
     PRECISION,
+    REDEMPTION_FEE,
+    REDEMPTION_FEE_SLOPE,
     ZERO_ADDRESS,
 )
 
@@ -70,6 +73,14 @@ def max_mintable(
     """Largest debt `collateral` base units can back at `feed_price` (mirrors `_collat_ratio`)."""
     value = collateral * price_scaled(feed_price, decimals, collateral_decimals) // PRECISION
     return value * PRECISION // MIN_COLLAT_RATIO
+
+
+def redemption_fee(ratio: int) -> int:
+    """1e18-scaled redemption fee for a position at `ratio` (mirrors `_redemption_fee`)."""
+    return min(
+        REDEMPTION_FEE + (ratio - MIN_COLLAT_RATIO) * REDEMPTION_FEE_SLOPE // PRECISION,
+        MAX_REDEMPTION_FEE,
+    )
 
 
 def filter_logs(contract, event_name: str, computation=None) -> list:

@@ -52,10 +52,14 @@ contract holds the collateral, tracks positions and mints/burns mUSD.
   reserve at the oracle price, less a 0.5% fee. Both swap fees (`SWAP_FEE`)
   stop callers from trading against the protocol at a lagging oracle price.
 - **Redemptions:** anyone can swap mUSD for $1 of collateral per mUSD from any
-  healthy position with `redeem(user, amount)`, less a 0.5% fee that stays with
-  the borrower. This puts a hard floor under the peg. The redeemer picks the
-  position: sorting positions by risk on-chain (as Liquity does) costs too much
-  for a contract this small, so any healthy position can be redeemed against.
+  healthy position with `redeem(user, amount, min_paid)`, less a fee that stays
+  with the borrower. This puts a floor under the peg. The redeemer picks the
+  position, since sorting positions by risk on-chain (as Liquity does) costs too
+  much for a contract this small. Instead the fee rises with the position's
+  ratio: 0.5% at 150%, plus 1% per 100% above it, capped at 5% from 600%. A
+  redeemer pays least for the riskiest positions, so those are redeemed first,
+  and safer borrowers keep more when they are redeemed. `min_paid` (default 0)
+  reverts the call if the borrower adds collateral first and the fee rises.
 - **Token:** ERC-20 + EIP-2612 permit, 18 decimals.
 
 | Function | Description |
@@ -65,7 +69,7 @@ contract holds the collateral, tracks positions and mints/burns mUSD.
 | `burn(amount)` | Burn mUSD to repay your debt |
 | `withdraw(amount)` | Withdraw collateral (ratio must stay ≥ 150%) |
 | `liquidate(user, max_repay)` | Repay up to `max_repay` of `user`'s debt for 110% of it in collateral (ratio < 150%) |
-| `redeem(user, amount)` | Burn `amount` mUSD of `user`'s debt for $1 of their collateral each, less 0.5% (ratio ≥ 150%) |
+| `redeem(user, amount, min_paid)` | Burn `amount` mUSD of `user`'s debt for $1 of their collateral each, less a 0.5–5% fee that rises with the ratio (ratio ≥ 150%) |
 | `cover_bad_debt(amount)` | Burn `amount` mUSD of bad debt for its value in reserve coin, less 0.5% |
 | `buy_surplus()` | Buy surplus mUSD with the sent native coin at the oracle price, less 0.5% |
 | `collat_ratio(user)` | 1e18-scaled collateral ratio (`1.5e18` = 150%) |

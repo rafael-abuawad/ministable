@@ -9,16 +9,19 @@ from tests.utils.constants import (
     PRECISION,
     REDEMPTION_FEE,
 )
-from tests.utils.helpers import filter_logs, price_scaled, to_feed_price
+from tests.utils.helpers import filter_logs, price_scaled, redemption_fee, to_feed_price
+
+# The default position's ratio at $2000.
+POSITION_RATIO = 2 * PRECISION
 
 
-def _redeemed(amount: int, feed_price: int = ETH_USD_PRICE) -> int:
-    """Collateral paid for `amount` mUSD (mirrors `redeem`)."""
-    return amount * (PRECISION - REDEMPTION_FEE) // price_scaled(feed_price)
+def _redeemed(amount: int, ratio: int = POSITION_RATIO, feed_price: int = ETH_USD_PRICE) -> int:
+    """Collateral paid for `amount` mUSD from a position at `ratio` (mirrors `redeem`)."""
+    return amount * (PRECISION - redemption_fee(ratio)) // price_scaled(feed_price)
 
 
 def test_redeem(cdp, token, borrower_position, funded_liquidator):
-    """Money Flow: redeemer mUSD → burned, $1 of the borrower's collateral less 0.5% → redeemer."""
+    """Money Flow: redeemer mUSD → burned, $1 of the borrower's collateral less 1% → redeemer."""
     borrower, redeemer = borrower_position, funded_liquidator
     redeemer_tokens = token.balanceOf(redeemer)
     supply = cdp.totalSupply()
@@ -27,7 +30,7 @@ def test_redeem(cdp, token, borrower_position, funded_liquidator):
 
     assert cdp.redeem(borrower, amount, sender=redeemer) == paid
 
-    assert paid == 199 * ETH // 1000  # $400 at $2000, less 0.5%
+    assert paid == 198 * ETH // 1000  # $400 at $2000, less 1% at 200%
     assert cdp.debt(borrower) == POSITION_DEBT - amount
     assert cdp.collateral(borrower) == POSITION_COLLATERAL - paid
     assert cdp.balanceOf(borrower) == POSITION_DEBT  # the borrower's mUSD is untouched
@@ -48,11 +51,11 @@ def test_redeem_emits_event(cdp, borrower_position, funded_liquidator):
 
 
 def test_fee_stays_with_borrower(cdp, borrower_position, funded_liquidator):
-    """The borrower loses $400 of debt and $398 of collateral: they keep $2 of value."""
+    """The borrower loses $400 of debt and $396 of collateral: they keep $4 of value."""
     amount = 400 * ETH
     paid = cdp.redeem(borrower_position, amount, sender=funded_liquidator)
 
-    assert amount - paid * 2000 == amount * REDEMPTION_FEE // PRECISION
+    assert amount - paid * 2000 == amount * redemption_fee(POSITION_RATIO) // PRECISION == 4 * ETH
 
 
 def test_redeem_raises_collat_ratio(cdp, borrower_position, funded_liquidator):
@@ -75,7 +78,20 @@ def test_redeem_at_min_ratio(cdp, oracle, borrower_position, funded_liquidator):
     oracle.set_answer(to_feed_price(1500))
     assert cdp.collat_ratio(borrower_position) == MIN_COLLAT_RATIO
 
-    cdp.redeem(borrower_position, ETH, sender=funded_liquidator)
+    paid = cdp.redeem(borrower_position, ETH, sender=funded_liquidator)
+
+    # At exactly 150% the fee is the 0.5% base.
+    assert redemption_fee(MIN_COLLAT_RATIO) == REDEMPTION_FEE
+    assert paid == _redeemed(ETH, MIN_COLLAT_RATIO, to_feed_price(1500))
+
+
+def test_redeem_min_paid(cdp, borrower_position, funded_liquidator):
+    paid = _redeemed(400 * ETH)
+
+    with boa.reverts(dev="[cdp] slippage"):
+        cdp.redeem(borrower_position, 400 * ETH, paid + 1, sender=funded_liquidator)
+
+    assert cdp.redeem(borrower_position, 400 * ETH, paid, sender=funded_liquidator) == paid
 
 
 def test_redeem_unhealthy_reverts(cdp, oracle, borrower_position, funded_liquidator):

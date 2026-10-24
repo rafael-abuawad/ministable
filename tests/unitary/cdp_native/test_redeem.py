@@ -6,19 +6,23 @@ from tests.utils.constants import (
     MIN_COLLAT_RATIO,
     POSITION_COLLATERAL,
     POSITION_DEBT,
+    MAX_REDEMPTION_FEE,
     PRECISION,
     REDEMPTION_FEE,
 )
-from tests.utils.helpers import filter_logs, to_feed_price
+from tests.utils.helpers import filter_logs, redemption_fee, to_feed_price
+
+# The default position's ratio at $2000.
+POSITION_RATIO = 2 * PRECISION
 
 
-def _redeemed_eth(amount: int, feed_price: int = ETH_USD_PRICE) -> int:
-    """ETH paid for `amount` mUSD (mirrors `redeem`)."""
-    return amount * (PRECISION - REDEMPTION_FEE) // (feed_price * 10**10)
+def _redeemed_eth(amount: int, ratio: int = POSITION_RATIO, feed_price: int = ETH_USD_PRICE) -> int:
+    """ETH paid for `amount` mUSD from a position at `ratio` (mirrors `redeem`)."""
+    return amount * (PRECISION - redemption_fee(ratio)) // (feed_price * 10**10)
 
 
 def test_redeem(cdp, borrower_position, funded_liquidator):
-    """Money Flow: redeemer mUSD → burned, $1 of the borrower's ETH less 0.5% → redeemer."""
+    """Money Flow: redeemer mUSD → burned, $1 of the borrower's ETH less 1% → redeemer."""
     borrower, redeemer = borrower_position, funded_liquidator
     redeemer_eth = boa.env.get_balance(redeemer)
     supply = cdp.totalSupply()
@@ -27,7 +31,7 @@ def test_redeem(cdp, borrower_position, funded_liquidator):
 
     assert cdp.redeem(borrower, amount, sender=redeemer) == eth
 
-    assert eth == 199 * ETH // 1000  # $400 at $2000, less 0.5%
+    assert eth == 198 * ETH // 1000  # $400 at $2000, less 1% at 200%
     assert cdp.debt(borrower) == POSITION_DEBT - amount
     assert cdp.collateral(borrower) == POSITION_COLLATERAL - eth
     assert cdp.balanceOf(borrower) == POSITION_DEBT  # the borrower's mUSD is untouched
@@ -37,12 +41,57 @@ def test_redeem(cdp, borrower_position, funded_liquidator):
 
 
 def test_fee_stays_with_borrower(cdp, borrower_position, funded_liquidator):
-    """The borrower loses $400 of debt and $398 of ETH: they keep $2 of value."""
+    """The borrower loses $400 of debt and $396 of ETH: they keep $4 of value."""
     amount = 400 * ETH
     eth = cdp.redeem(borrower_position, amount, sender=funded_liquidator)
 
     kept = amount - eth * 2000
-    assert kept == amount * REDEMPTION_FEE // PRECISION
+    assert kept == amount * redemption_fee(POSITION_RATIO) // PRECISION == 4 * ETH
+
+
+def test_redeem_fee_at_min_ratio(cdp, oracle, borrower_position, funded_liquidator):
+    """At exactly 150% the fee is the 0.5% base."""
+    oracle.set_answer(to_feed_price(1500))
+    assert cdp.collat_ratio(borrower_position) == MIN_COLLAT_RATIO
+    assert redemption_fee(MIN_COLLAT_RATIO) == REDEMPTION_FEE
+
+    eth = cdp.redeem(borrower_position, 300 * ETH, sender=funded_liquidator)
+
+    assert eth == _redeemed_eth(300 * ETH, MIN_COLLAT_RATIO, to_feed_price(1500))
+    assert eth == 199 * ETH // 1000  # $300 at $1500, less 0.5%
+
+
+def test_redeem_fee_rises_with_ratio(cdp, borrower_position, funded_liquidator, recipient):
+    """A 400% position pays the redeemer less per mUSD than a 200% one."""
+    cdp.deposit(value=2 * ETH, sender=recipient)
+    cdp.mint(POSITION_DEBT, sender=recipient)
+    assert cdp.collat_ratio(recipient) == 4 * PRECISION
+
+    risky = cdp.redeem(borrower_position, 400 * ETH, sender=funded_liquidator)
+    safe = cdp.redeem(recipient, 400 * ETH, sender=funded_liquidator)
+
+    assert risky == _redeemed_eth(400 * ETH)  # 1% fee
+    assert safe == _redeemed_eth(400 * ETH, 4 * PRECISION)  # 3% fee
+    assert safe < risky
+
+
+def test_redeem_fee_is_capped(cdp, borrower_position, funded_liquidator):
+    """The liquidator's 2000% position pays the 5% cap, not 19%."""
+    assert cdp.collat_ratio(funded_liquidator) == 20 * PRECISION
+
+    eth = cdp.redeem(funded_liquidator, 400 * ETH, sender=borrower_position)
+
+    assert eth == 400 * ETH * (PRECISION - MAX_REDEMPTION_FEE) // (ETH_USD_PRICE * 10**10)
+    assert eth == 19 * ETH // 100  # $400 at $2000, less 5%
+
+
+def test_redeem_min_paid(cdp, borrower_position, funded_liquidator):
+    eth = _redeemed_eth(400 * ETH)
+
+    with boa.reverts(dev="[cdp] slippage"):
+        cdp.redeem(borrower_position, 400 * ETH, eth + 1, sender=funded_liquidator)
+
+    assert cdp.redeem(borrower_position, 400 * ETH, eth, sender=funded_liquidator) == eth
 
 
 def test_redeem_raises_collat_ratio(cdp, borrower_position, funded_liquidator):
