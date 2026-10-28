@@ -34,7 +34,7 @@ from src.interfaces import IAggregatorV3
 # @dev We import and use the `erc20` module,
 # which tracks the stablecoin minted against
 # the collateral.
-from modules import erc20
+from ..tokens import erc20
 uses: erc20
 
 

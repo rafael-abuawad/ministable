@@ -15,11 +15,11 @@ from snekmate.auth import ownable as ow
 initializes: ow
 
 
-from modules import erc20
+from modules.tokens import erc20
 initializes: erc20[ownable := ow]
 
 
-from modules import cdp_native
+from modules.cdp import cdp_native
 initializes: cdp_native
 
 

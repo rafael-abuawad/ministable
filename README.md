@@ -9,10 +9,10 @@ contract holds the collateral, tracks positions and mints/burns mUSD.
 | File | Contents |
 | --- | --- |
 | `src/ministable.vy` | The deployed token: wires the modules below together and treats plain transfers as deposits |
-| `modules/erc20.vy` | ERC-20 + EIP-2612 permit |
-| `modules/cdp.vy` | The collateral-agnostic CDP engine: positions, debt, interest, liquidations, redemptions, bad debt, surplus and the oracle. It never moves collateral; its internal functions return what to pay out, and `VARIANT` records which kind of collateral backs it |
-| `modules/cdp_native.vy` | Wraps `cdp` with the native coin as collateral: receives it via `deposit` and sends it with `raw_call` |
-| `modules/cdp_erc20.vy` | Wraps `cdp` with an ERC-20 token (USDC, USDT, WETH, …) as collateral: pulls and sends the token, crediting what actually arrives. Not wired into a deployed contract yet |
+| `modules/tokens/erc20.vy` | ERC-20 + EIP-2612 permit |
+| `modules/cdp/cdp.vy` | The collateral-agnostic CDP engine: positions, debt, interest, liquidations, redemptions, bad debt, surplus and the oracle. It never moves collateral; its internal functions return what to pay out, and `VARIANT` records which kind of collateral backs it |
+| `modules/cdp/cdp_native.vy` | Wraps `cdp` with the native coin as collateral: receives it via `deposit` and sends it with `raw_call` |
+| `modules/cdp/cdp_erc20.vy` | Wraps `cdp` with an ERC-20 token (USDC, USDT, WETH, …) as collateral: pulls and sends the token, crediting what actually arrives. Not wired into a deployed contract yet |
 
 ## Mechanism
 

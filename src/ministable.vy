@@ -46,12 +46,12 @@ initializes: ow
 
 
 # @dev We import and initialise the `erc20` module.
-from modules import erc20
+from modules.tokens import erc20
 initializes: erc20[ownable := ow]
 
 
 # @dev We import and initialise the `cdp_native` module.
-from modules import cdp_native
+from modules.cdp import cdp_native
 initializes: cdp_native
 
 

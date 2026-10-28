@@ -21,12 +21,12 @@ from src.interfaces import IAggregatorV3
 # @dev We import the `erc20` module, which tracks
 # the stablecoin minted against the collateral, to
 # hand it to the `cdp` module.
-from modules import erc20
+from ..tokens import erc20
 
 
 # @dev We import and initialise the `cdp` module,
 # which holds the positions and their accounting.
-from modules import cdp
+from . import cdp
 initializes: cdp[erc20 := erc20]
 
 

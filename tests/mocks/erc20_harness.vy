@@ -11,7 +11,7 @@ from snekmate.auth import ownable as ow
 initializes: ow
 
 
-from modules import erc20
+from modules.tokens import erc20
 initializes: erc20[ownable := ow]
 
 
