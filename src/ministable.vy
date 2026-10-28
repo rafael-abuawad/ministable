@@ -37,7 +37,7 @@ implements: IERC5267
 
 # @dev We import the `IAggregatorV3` interface
 # for the Chainlink native coin / USD price feed.
-from .interfaces import IAggregatorV3
+from modules.cdp.interfaces import IAggregatorV3
 
 
 # @dev We import and initialise the `ownable` module.

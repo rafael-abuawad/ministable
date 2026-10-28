@@ -19,7 +19,7 @@ from . import ministable
 
 
 # @dev Chainlink feed type, matching `ministable`'s constructor.
-from .interfaces import IAggregatorV3
+from modules.cdp.interfaces import IAggregatorV3
 
 
 # @dev We import and initialise the `ownable` module.

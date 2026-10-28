@@ -24,7 +24,7 @@ from moccasin.config import Network, get_active_network
 from src import ministable
 
 IAggregatorV3 = boa.load_vyi(
-    str(Path(__file__).parents[1] / "src/interfaces/IAggregatorV3.vyi")
+    str(Path(__file__).parents[1] / "modules/cdp/interfaces/IAggregatorV3.vyi")
 )
 
 NAME = "ministable"

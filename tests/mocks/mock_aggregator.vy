@@ -7,7 +7,7 @@
 """
 
 
-from interfaces import IAggregatorV3
+from modules.cdp.interfaces import IAggregatorV3
 implements: IAggregatorV3
 
 

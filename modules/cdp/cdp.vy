@@ -28,7 +28,7 @@
 
 # @dev We import the `IAggregatorV3` interface
 # for the Chainlink collateral / USD price feed.
-from src.interfaces import IAggregatorV3
+from .interfaces import IAggregatorV3
 
 
 # @dev We import and use the `erc20` module,
